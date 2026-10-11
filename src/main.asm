@@ -68,12 +68,60 @@ LARGE_SIZE  = 4096
         JE   handleError
 
         handleError:
-            mov edx, OFFSET errOpenMsg
-            call WriteString
-            call Crlf
+            MOV  edx, OFFSET errOpenMsg
+            CALL WriteString
+            CALL Crlf
 
         ret
     openFiles ENDP
+
+; very easy
+    XORCipher PROC
+
+        ret
+    XORCipher ENDP
+
+    ; very easy
+    CaesarCipher PROC
+
+        ret
+    CaesarCipher ENDP
+
+    ; easy
+    RailFenceCipher PROC
+
+        ret
+    RailFenceCipher ENDP
+
+    ; easy - medium
+    VigenereCipher PROC
+
+        ret
+    VigenereCipher ENDP
+
+    ; medium
+    RC4Cipher PROC
+
+        ret
+    RC4Cipher ENDP
+
+    ; medium - hard
+    ChaCha20Cipher PROC
+
+        ret
+    ChaCha20Cipher ENDP
+
+    ; hard
+    DESCipher PROC
+
+        ret
+    DESCipher ENDP
+
+    ; very hard
+    AES128Cipher PROC
+
+        ret
+    AES128Cipher ENDP
 
 	main PROC
         CALL promptUser
