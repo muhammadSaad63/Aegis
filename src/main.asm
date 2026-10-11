@@ -67,15 +67,18 @@ LARGE_SIZE  = 4096
         CMP  eax, INVALID_HANDLE_VALUE
         JE   handleError
 
+        JMP openSuccess
+
         handleError:
             MOV  edx, OFFSET errOpenMsg
             CALL WriteString
             CALL Crlf
 
-        ret
+        openSuccess:
+            ret
     openFiles ENDP
 
-; very easy
+    ; very easy
     XORCipher PROC
 
         ret
