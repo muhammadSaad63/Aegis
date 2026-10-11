@@ -7,15 +7,16 @@ LARGE_SIZE  = 4096
 
 ; variables
 .data
-    ; string buffers
-	inputFilePath  BYTE MEDIUM_SIZE DUP(?)
-    outputFilePath BYTE MEDIUM_SIZE DUP(?)
-    keyBuffer      BYTE SMALL_SIZE  DUP(?)
-    dataBuffer     BYTE LARGE_SIZE  DUP(?)
-
+    ; data buffers
+    bytesRead      DWORD ?
     inputHandle    DWORD ?
     outputHandle   DWORD ?
-    bytesRead      DWORD ?
+
+    ; string buffers
+    keyBuffer      BYTE SMALL_SIZE  DUP(?)
+    dataBuffer     BYTE LARGE_SIZE  DUP(?)
+	inputFilePath  BYTE MEDIUM_SIZE DUP(?)
+    outputFilePath BYTE MEDIUM_SIZE DUP(?)
 
     ; prompt strings
     promptIn       BYTE "Enter source file path:                ", 0
