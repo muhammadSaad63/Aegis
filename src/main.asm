@@ -18,10 +18,10 @@ LARGE_SIZE  = 4096
     bytesRead      DWORD ?
 
     ; prompt strings
-    promptIn    BYTE "Enter source file path:          ", 0
-    promptOut   BYTE "Enter output file path:          ", 0
-    promptKey   BYTE "Enter encryption key/passphrase: ", 0
-
+    promptIn       BYTE "Enter source file path:                ", 0
+    promptOut      BYTE "Enter output file path:                ", 0
+    promptKey      BYTE "Enter encryption key/passphrase:       ", 0
+    errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
 
 .code
     ; collects file paths and passphrase from the user
@@ -50,8 +50,33 @@ LARGE_SIZE  = 4096
         ret
     promptUser ENDP
 
+    ; opens the inputFile & outputFile
+    openFiles PROC
+        ; open inputFile
+        MOV  edx, OFFSET inputFilePath
+        CALL OpenInputFile
+        MOV  inputHandle, eax
+        CMP  eax, INVALID_HANDLE_VALUE
+        JE   handleError
+
+        ; create outputFile
+        MOV  edx, OFFSET outputFilePath
+        CALL CreateOutputFile
+        MOV  outputHandle, eax
+        CMP  eax, INVALID_HANDLE_VALUE
+        JE   handleError
+
+        handleError:
+            mov edx, OFFSET errOpenMsg
+            call WriteString
+            call Crlf
+
+        ret
+    openFiles ENDP
+
 	main PROC
         CALL promptUser
+        CALL openFiles
 
 		exit
 	main ENDP
