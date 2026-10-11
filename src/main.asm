@@ -80,6 +80,23 @@ LARGE_SIZE  = 4096
 
     ; very easy
     XORCipher PROC
+        MOV esi, OFFSET dataBuffer      ; holds address of data chunk
+        MOV ecx, bytesRead              ; loop counter
+        XOR edi, edi                    ; effectively MOV edi, 0
+
+        getCipherKey:
+            MOV al, keyBuffer[edi]      ; get current key byte
+            CMP al, 0                   ; checks for null terminator of key string
+            JNE applyXOR                ; if al != 0 (ie the null terminator), jumnp to applyXOR
+            XOR edi, edi                ; reset key index (wrap around) if null terminator reached
+            MOV al, keyBuffer[edi]      ; get value at start of key
+
+        applyXOR:
+            XOR [esi], al               ; apply bitwise xor to a byte of the data chunk
+            INC esi                     ; move to next data byte
+            INC edi                     ; move to next key byte
+            
+            LOOP getCipherKey           ; decrements ecx and then gets the next key if ecx != 0
 
         ret
     XORCipher ENDP
