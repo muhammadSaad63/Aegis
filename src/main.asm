@@ -82,8 +82,11 @@ LARGE_SIZE  = 4096
             MOV  edx, OFFSET errOpenMsg
             CALL WriteString
             CALL Crlf
+            STC                  ; set carry flag to indicate error
+            RET
 
         openSuccess:
+            CLC                  ; clear carry flag on success
             RET
 
     openFiles ENDP
@@ -186,7 +189,7 @@ LARGE_SIZE  = 4096
                     SUB al, 26                                          ; wrap around if past Z
                     JMP storeByte
 
-            checkLowerCase::
+            checkLowerCase:
                 ; check if byte is lowercased (a-z -> ascii 97 to 122)
                     CMP al, 'a'
                     JB  skipByte                                        ; skips if ascii value of byte is > Z & < a (ie bw Z and a)
@@ -257,8 +260,13 @@ LARGE_SIZE  = 4096
 	main PROC
         CALL promptUser
         CALL openFiles
+        JC   exitProgram        ; exit if opening files failed (checks if carry flag is set)
 
-		exit
+        CALL ProcessStream
+
+        exitProgram:
+            exit
+
 	main ENDP
 
 
