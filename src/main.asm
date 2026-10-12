@@ -169,8 +169,47 @@ LARGE_SIZE  = 4096
                 MOV ecx, bytesRead          ; the loop counter = bytes actually read
                 MOV bl, 3                   ; using a arbitrary shift of 3 for now
 
+        caesar_transform_loop:
+            MOV al, [esi]                   ; Load current byte
 
-        ret
+            checkUpperCase:
+                ; check if byte is uppercase (A-Z -> ASCII 65 to 90)
+                    CMP al, 'A'
+                    JB  check_lowercase
+                    CMP al, 'Z'
+                    JA  check_lowercase
+                
+                ; handle Uppercase Shift with Wrap-around
+                    ADD al, bl                  ; Apply shift
+                    CMP al, 'Z'
+                    JBE store_byte              
+                    SUB al, 26                  ; Wrap around if past 'Z'
+                    JMP store_byte
+
+            checkLowerCase::
+                ; Check if byte is Lowercase (a-z -> ASCII 97 to 122)
+                    CMP al, 'a'
+                    JB  skip_byte
+                    CMP al, 'z'
+                    JA  skip_byte
+
+                ; Handle Lowercase Shift with Wrap-around
+                    ADD al, bl                  ; Apply shift
+                    CMP al, 'z'
+                    JBE store_byte
+                    SUB al, 26                  ; Wrap around if past 'z'
+                    JMP store_byte  
+
+        storeByte:
+            MOV [esi], al               ; Save transformed byte back in-place
+
+        skipByte:
+            INC esi                     ; Move to next byte
+            DEC ecx                     ; Decrease byte counter
+            JNZ caesar_transform_loop   ; Repeat for entire chunk
+
+        RET
+
     CaesarCipher ENDP
 
 
