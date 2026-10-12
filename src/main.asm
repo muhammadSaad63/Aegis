@@ -173,40 +173,39 @@ LARGE_SIZE  = 4096
             MOV al, [esi]                                               ; Load current byte
 
             checkUpperCase:
-                ; check if byte is uppercase (A-Z -> ASCII 65 to 90)
+                ; check if byte is uppercase (A-Z -> ascii 65 to 90)
                     CMP al, 'A'
-                    JB  check_lowercase
+                    JB  skipByte                                        ; skip the byte if its ascii value is below A (ie it aint a alphabet)
                     CMP al, 'Z'
-                    JA  check_lowercase
+                    JA  checkLowerCase                                  ; if the byte is greater than Z, go check if it is lowercase
                 
-                ; handle Uppercase Shift with Wrap-around
+                ; handle uppercase shift with wrapAround
                     ADD al, bl                                          ; apply shift
-                    CMP al, 'Z'
-                    JBE storeByte              
-                    SUB al, 26                                          ; wrap around if past 'Z'
+                    CMP al, 'Z'                                         
+                    JBE storeByte                                       ; stores the byte if it below or eual to Z
+                    SUB al, 26                                          ; wrap around if past Z
                     JMP storeByte
 
             checkLowerCase::
-                ; Check if byte is Lowercase (a-z -> ASCII 97 to 122)
+                ; check if byte is lowercased (a-z -> ascii 97 to 122)
                     CMP al, 'a'
-                    JB  skip_byte
+                    JB  skipByte                                        ; skips if ascii value of byte is > Z & < a (ie bw Z and a)
                     CMP al, 'z'
-                    JA  skip_byte
+                    JA  skipByte                                        ; skips if ascii value of byte is > a (ie > 122)
 
-                ; Handle Lowercase Shift with Wrap-around
-                    ADD al, bl                                          ; Apply shift
+                ; handle lowerCase shift with wrapAround
+                    ADD al, bl                                          ; apply shift
                     CMP al, 'z'
                     JBE storeByte
-                    SUB al, 26                                          ; Wrap around if past 'z'
+                    SUB al, 26                                          ; wrap around if past z
                     JMP storeByte  
 
             storeByte:
-                MOV [esi], al                                           ; Save transformed byte back in-place
+                MOV [esi], al                                           ; saves transformed byte back inPlace
 
         skipByte:
-            INC esi                                                     ; Move to next byte
-            DEC ecx                                                     ; Decrease byte counter
-            JNZ applyCipher                                             ; Repeat for entire chunk
+            INC esi                                                     ; move to next byte of dataBuffer
+            LOOP applyCipher
 
         RET
 
