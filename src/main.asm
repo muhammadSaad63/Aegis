@@ -146,11 +146,11 @@ LARGE_SIZE  = 4096
         getCipherKey:
             MOV al, keyBuffer[edi]          ; get current key byte
             CMP al, 0                       ; checks for null terminator of key string
-            JNE applyXOR                    ; if al != 0 (ie the null terminator), jumnp to applyXOR
+            JNE applyCipher                 ; if al != 0 (ie the null terminator), jumnp to applyXOR
             XOR edi, edi                    ; reset key index (wrap around) if null terminator reached
             MOV al, keyBuffer[edi]          ; get value at start of key
 
-        applyXOR:   
+        applyCipher:   
             XOR [esi], al                   ; apply bitwise xor to a byte of the data chunk
             INC esi                         ; move to next data byte
             INC edi                         ; move to next key byte
@@ -165,12 +165,12 @@ LARGE_SIZE  = 4096
     ; very easy
     CaesarCipher PROC
         initializeRegs:
-                MOV esi, OFFSET dataBuffer  ; points to source data chunk
-                MOV ecx, bytesRead          ; the loop counter = bytes actually read
-                MOV bl, 3                   ; using a arbitrary shift of 3 for now
+                MOV esi, OFFSET dataBuffer                              ; points to source data chunk
+                MOV ecx, bytesRead                                      ; the loop counter = bytes actually read
+                MOV bl, 3                                               ; using a arbitrary shift of 3 for now
 
-        caesar_transform_loop:
-            MOV al, [esi]                   ; Load current byte
+        applyCipher:
+            MOV al, [esi]                                               ; Load current byte
 
             checkUpperCase:
                 ; check if byte is uppercase (A-Z -> ASCII 65 to 90)
@@ -180,11 +180,11 @@ LARGE_SIZE  = 4096
                     JA  check_lowercase
                 
                 ; handle Uppercase Shift with Wrap-around
-                    ADD al, bl                  ; Apply shift
+                    ADD al, bl                                          ; apply shift
                     CMP al, 'Z'
-                    JBE store_byte              
-                    SUB al, 26                  ; Wrap around if past 'Z'
-                    JMP store_byte
+                    JBE storeByte              
+                    SUB al, 26                                          ; wrap around if past 'Z'
+                    JMP storeByte
 
             checkLowerCase::
                 ; Check if byte is Lowercase (a-z -> ASCII 97 to 122)
@@ -194,19 +194,19 @@ LARGE_SIZE  = 4096
                     JA  skip_byte
 
                 ; Handle Lowercase Shift with Wrap-around
-                    ADD al, bl                  ; Apply shift
+                    ADD al, bl                                          ; Apply shift
                     CMP al, 'z'
-                    JBE store_byte
-                    SUB al, 26                  ; Wrap around if past 'z'
-                    JMP store_byte  
+                    JBE storeByte
+                    SUB al, 26                                          ; Wrap around if past 'z'
+                    JMP storeByte  
 
-        storeByte:
-            MOV [esi], al               ; Save transformed byte back in-place
+            storeByte:
+                MOV [esi], al                                           ; Save transformed byte back in-place
 
         skipByte:
-            INC esi                     ; Move to next byte
-            DEC ecx                     ; Decrease byte counter
-            JNZ caesar_transform_loop   ; Repeat for entire chunk
+            INC esi                                                     ; Move to next byte
+            DEC ecx                                                     ; Decrease byte counter
+            JNZ applyCipher                                             ; Repeat for entire chunk
 
         RET
 
