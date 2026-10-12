@@ -243,20 +243,6 @@ LARGE_SIZE  = 4096
     ChaCha20Cipher ENDP
 
 
-    ; hard
-    DESCipher PROC
-
-        ret
-    DESCipher ENDP
-
-
-    ; very hard
-    AES128Cipher PROC
-
-        ret
-    AES128Cipher ENDP
-
-
 	main PROC
         CALL promptUser
         CALL openFiles
