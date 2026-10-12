@@ -164,6 +164,11 @@ LARGE_SIZE  = 4096
 
     ; very easy
     CaesarCipher PROC
+        initializeRegs:
+                MOV esi, OFFSET dataBuffer  ; points to source data chunk
+                MOV ecx, bytesRead          ; the loop counter = bytes actually read
+                MOV bl, 3                   ; using a arbitrary shift of 3 for now
+
 
         ret
     CaesarCipher ENDP
