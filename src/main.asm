@@ -78,6 +78,50 @@ LARGE_SIZE  = 4096
             ret
     openFiles ENDP
 
+
+    ProcessStream PROC
+
+        ; reads up to 4,096 bytes from inputHandle and put them into dataBuffer
+        readDataFromFile:
+                MOV  eax, inputHandle
+                MOV  edx, OFFSET dataBuffer
+                MOV  ecx, LARGE_SIZE                      ; LARGE_SIZE = 4096 bytes
+                CALL ReadFromFile
+                JC   handleError
+            
+        MOV bytesRead, eax                                ; eax holds the exact number of bytes read
+        CMP eax, 0                                        ; Check if we hit the End Of File
+        JE  cleanup_files
+
+        ; run xor transformation on the loaded chunk
+        CALL XORCipher
+
+        ; writes transformed chunk to output file
+        writeDataToFile:
+            MOV  eax, outputHandle
+            MOV  edx, OFFSET dataBuffer
+            MOV  ecx, bytesRead
+            CALL WriteToFile
+            JC   handleError
+
+            JMP  readDataFromFile
+
+        cleanup_files:
+            MOV  eax, inputHandle
+            CALL CloseFile
+            MOV  eax, outputHandle
+            CALL CloseFile
+
+        processSuccess:
+            MOV  edx, OFFSET successMsg
+            CALL WriteString
+            CALL Crlf
+
+        handleError:
+            RET
+
+    ProcessStream ENDP
+
     ; very easy
     XORCipher PROC
         MOV esi, OFFSET dataBuffer      ; holds address of data chunk
