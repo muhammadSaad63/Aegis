@@ -25,31 +25,37 @@ LARGE_SIZE  = 4096
     errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
 
 .code
+
     ; collects file paths and passphrase from the user
     promptUser PROC
         ; prompting for inputFilePath
-        MOV  edx, OFFSET promptIn
-        CALL WriteString
-        MOV  edx, OFFSET inputFilePath
-        MOV  ecx, MEDIUM_SIZE
-        CALL ReadString
+        promptForInputFilePath:
+            MOV  edx, OFFSET promptIn
+            CALL WriteString
+            MOV  edx, OFFSET inputFilePath
+            MOV  ecx, MEDIUM_SIZE
+            CALL ReadString
 
         ; prompting for outputFilePath
-        MOV  edx, OFFSET promptOut
-        CALL WriteString
-        MOV  edx, OFFSET outputFilePath
-        MOV  ecx, MEDIUM_SIZE
-        CALL ReadString
+        promptForOutputFilePath:
+            MOV  edx, OFFSET promptOut
+            CALL WriteString
+            MOV  edx, OFFSET outputFilePath
+            MOV  ecx, MEDIUM_SIZE
+            CALL ReadString
 
         ; prompting for the cipherKey
-        MOV  edx, OFFSET promptKey
-        CALL WriteString
-        MOV  edx, OFFSET keyBuffer
-        MOV  ecx, SMALL_SIZE
-        CALL ReadString
+        promptForCipherKey:
+            MOV  edx, OFFSET promptKey
+            CALL WriteString
+            MOV  edx, OFFSET keyBuffer
+            MOV  ecx, SMALL_SIZE
+            CALL ReadString
 
-        ret
+        RET
+        
     promptUser ENDP
+
 
     ; opens the inputFile & outputFile
     openFiles PROC
@@ -83,6 +89,7 @@ LARGE_SIZE  = 4096
     openFiles ENDP
 
 
+    ; continously reads & writes data from the files & performs algorithms on em
     ProcessStream PROC
 
         ; reads up to 4,096 bytes from inputHandle and put them into dataBuffer
@@ -127,28 +134,33 @@ LARGE_SIZE  = 4096
 
     ProcessStream ENDP
 
-    ; very easy
+
+    ; performs the very basic XOR cipher on the data chunk
     XORCipher PROC
-        MOV esi, OFFSET dataBuffer      ; holds address of data chunk
-        MOV ecx, bytesRead              ; loop counter
-        XOR edi, edi                    ; effectively MOV edi, 0
+
+        initializeRegs:
+            MOV esi, OFFSET dataBuffer      ; holds address of data chunk
+            MOV ecx, bytesRead              ; loop counter
+            XOR edi, edi                    ; effectively MOV edi, 0
 
         getCipherKey:
-            MOV al, keyBuffer[edi]      ; get current key byte
-            CMP al, 0                   ; checks for null terminator of key string
-            JNE applyXOR                ; if al != 0 (ie the null terminator), jumnp to applyXOR
-            XOR edi, edi                ; reset key index (wrap around) if null terminator reached
-            MOV al, keyBuffer[edi]      ; get value at start of key
+            MOV al, keyBuffer[edi]          ; get current key byte
+            CMP al, 0                       ; checks for null terminator of key string
+            JNE applyXOR                    ; if al != 0 (ie the null terminator), jumnp to applyXOR
+            XOR edi, edi                    ; reset key index (wrap around) if null terminator reached
+            MOV al, keyBuffer[edi]          ; get value at start of key
 
-        applyXOR:
-            XOR [esi], al               ; apply bitwise xor to a byte of the data chunk
-            INC esi                     ; move to next data byte
-            INC edi                     ; move to next key byte
-            
-            LOOP getCipherKey           ; decrements ecx and then gets the next key if ecx != 0
+        applyXOR:   
+            XOR [esi], al                   ; apply bitwise xor to a byte of the data chunk
+            INC esi                         ; move to next data byte
+            INC edi                         ; move to next key byte
 
-        ret
+            LOOP getCipherKey               ; decrements ecx and then gets the next key if ecx != 0
+
+        RET
+
     XORCipher ENDP
+
 
     ; very easy
     CaesarCipher PROC
@@ -156,11 +168,13 @@ LARGE_SIZE  = 4096
         ret
     CaesarCipher ENDP
 
+
     ; easy
     RailFenceCipher PROC
 
         ret
     RailFenceCipher ENDP
+
 
     ; easy - medium
     VigenereCipher PROC
@@ -168,11 +182,13 @@ LARGE_SIZE  = 4096
         ret
     VigenereCipher ENDP
 
+
     ; medium
     RC4Cipher PROC
 
         ret
     RC4Cipher ENDP
+
 
     ; medium - hard
     ChaCha20Cipher PROC
@@ -180,17 +196,20 @@ LARGE_SIZE  = 4096
         ret
     ChaCha20Cipher ENDP
 
+
     ; hard
     DESCipher PROC
 
         ret
     DESCipher ENDP
 
+
     ; very hard
     AES128Cipher PROC
 
         ret
     AES128Cipher ENDP
+
 
 	main PROC
         CALL promptUser
