@@ -24,6 +24,15 @@ LARGE_SIZE  = 4096
     promptKey      BYTE "Enter encryption key/passphrase:       ", 0
     errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
 
+    ; Rail Fence Cipher variables
+    railBuffer     BYTE   LARGE_SIZE DUP(?)
+    railCount      DWORD  ?
+    targetRail     DWORD  ?
+    currentRail    DWORD  ?
+    railDirection  SDWORD ?
+    scanIndex      DWORD  ?
+    outputIndex    DWORD  ?
+
 .code
 
     ; collects file paths and passphrase from the user
