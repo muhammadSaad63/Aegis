@@ -53,19 +53,22 @@ LARGE_SIZE  = 4096
 
     ; opens the inputFile & outputFile
     openFiles PROC
+
         ; open inputFile
-        MOV  edx, OFFSET inputFilePath
-        CALL OpenInputFile
-        MOV  inputHandle, eax
-        CMP  eax, INVALID_HANDLE_VALUE
-        JE   handleError
+        oprnsInputFile:
+            MOV  edx, OFFSET inputFilePath
+            CALL OpenInputFile
+            MOV  inputHandle, eax
+            CMP  eax, INVALID_HANDLE_VALUE
+            JE   handleError
 
         ; create outputFile
-        MOV  edx, OFFSET outputFilePath
-        CALL CreateOutputFile
-        MOV  outputHandle, eax
-        CMP  eax, INVALID_HANDLE_VALUE
-        JE   handleError
+        createsOutputFile:
+            MOV  edx, OFFSET outputFilePath
+            CALL CreateOutputFile
+            MOV  outputHandle, eax
+            CMP  eax, INVALID_HANDLE_VALUE
+            JE   handleError
 
         JMP openSuccess
 
@@ -75,7 +78,8 @@ LARGE_SIZE  = 4096
             CALL Crlf
 
         openSuccess:
-            ret
+            RET
+
     openFiles ENDP
 
 
@@ -88,10 +92,11 @@ LARGE_SIZE  = 4096
                 MOV  ecx, LARGE_SIZE                      ; LARGE_SIZE = 4096 bytes
                 CALL ReadFromFile
                 JC   handleError
-            
-        MOV bytesRead, eax                                ; eax holds the exact number of bytes read
-        CMP eax, 0                                        ; Check if we hit the End Of File
-        JE  cleanup_files
+
+        checkEOF:
+            MOV bytesRead, eax                                ; eax holds the exact number of bytes read
+            CMP eax, 0                                        ; checks if we hit the End Of File
+            JE  closeFiles
 
         ; run xor transformation on the loaded chunk
         CALL XORCipher
@@ -106,7 +111,7 @@ LARGE_SIZE  = 4096
 
             JMP  readDataFromFile
 
-        cleanup_files:
+        closeFiles:
             MOV  eax, inputHandle
             CALL CloseFile
             MOV  eax, outputHandle
