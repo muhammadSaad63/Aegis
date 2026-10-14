@@ -305,6 +305,8 @@ LARGE_SIZE  = 4096
 
     printMenu PROC
 
+        CALL ClrScr
+
         ; Set text to Bright Cyan (0Bh) for the header banner
         MOV eax, 0Bh                    
         CALL SetTextColor
@@ -356,8 +358,6 @@ LARGE_SIZE  = 4096
         CALL WriteString
         MOV EDX, OFFSET bannerLine16
         CALL WriteString
-        MOV EDX, OFFSET bannerLine17
-        CALL WriteString
 
         ; Reset back to default white-on-black (07h) before reading user choice
         MOV eax, 07h                    
@@ -366,6 +366,52 @@ LARGE_SIZE  = 4096
         RET
 
     printMenu ENDP
+
+
+    ; continously prompts user for input, reads it, and then validates it until the input acceptable
+    getInput PROC
+
+        promptLoop:
+            MOV EDX, OFFSET bannerLine17
+            CALL WriteString
+
+            CALL ReadChar          ; Waits for keystroke; ASCII code placed in AL
+            CALL WriteChar         ; Echoes character to screen
+            CALL Crlf              ; Move down cleanly
+
+            ; 1. Check for Exit ('X' or 'x')
+            CMP al, 'X'
+            JE  validInput
+            CMP al, 'x'
+            JE  validInput
+
+            ; 2. Check for Toggle Mode ('M' or 'm')
+            CMP al, 'M'
+            JE  validInput
+            CMP al, 'm'
+            JE  validInput
+
+            ; 3. Check for Toggle Input ('I' or 'i')
+            CMP al, 'I'
+            JE  validInput
+            CMP al, 'i'
+            JE  validInput
+
+            ; 4. Check for Cipher Choices ('1' through '5')
+            CMP al, '1'
+            JB  invalidKey         ; Below '1' is invalid
+            CMP al, '5'
+            JBE validInput         ; Between '1' and '5' is valid
+        
+        ; Fallthrough for anything above '5'
+        invalidKey:
+            ; (Optional: Print a short error or just loop back)
+            JMP promptLoop
+
+        validInput:
+            RET
+
+    getInput ENDP
 
 
 	main PROC
@@ -378,7 +424,16 @@ LARGE_SIZE  = 4096
         ; exitProgram:
         ;     exit
 
-        call printMenu
+        program:
+            CALL printMenu
+            CALL getInput
+
+            CALL processInput
+            JC   endProg
+            JMP  program
+
+        endProg:
+            RET
 
 	main ENDP
 
