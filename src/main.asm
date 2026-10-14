@@ -302,28 +302,28 @@ LARGE_SIZE  = 4096
     ; decryption algo for the XOR cipher
     decrypt_XORCipher PROC
 
-        CALL encrypt_XORCipher              ; waow! (its since: XOR(XOR(someText, key), key) = someText)
-        RET
-
-        ; initializeRegs:
-        ;     MOV esi, OFFSET dataBuffer      ; holds address of data chunk
-        ;     MOV ecx, bytesRead              ; loop counter
-        ;     XOR edi, edi                    ; effectively MOV edi, 0
-
-        ; getCipherKey:
-        ;     MOV al, keyBuffer[edi]          ; get current key byte
-        ;     CMP al, 0                       ; checks for null terminator of key string
-        ;     JNE applyCipher                 ; if al != 0, jump to applyCipher
-        ;     XOR edi, edi                    ; reset key index (wrap around)
-        ;     MOV al, keyBuffer[edi]          ; get value at start of key
-
-        ; applyCipher:   
-        ;     XOR [esi], al                   ; apply bitwise xor to undo encryption
-        ;     INC esi                         ; move to next data byte
-        ;     INC edi                         ; move to next key byte
-        ;     LOOP getCipherKey
-
+        ; CALL encrypt_XORCipher              ; waow! (its since: XOR(XOR(someText, key), key) = someText)
         ; RET
+
+        initializeRegs:
+            MOV esi, OFFSET dataBuffer      ; holds address of data chunk
+            MOV ecx, bytesRead              ; loop counter
+            XOR edi, edi                    ; effectively MOV edi, 0
+
+        getCipherKey:
+            MOV al, keyBuffer[edi]          ; get current key byte
+            CMP al, 0                       ; checks for null terminator of key string
+            JNE applyCipher                 ; if al != 0, jump to applyCipher
+            XOR edi, edi                    ; reset key index (wrap around)
+            MOV al, keyBuffer[edi]          ; get value at start of key
+
+        applyCipher:   
+            XOR [esi], al                   ; apply bitwise xor to undo encryption
+            INC esi                         ; move to next data byte
+            INC edi                         ; move to next key byte
+            LOOP getCipherKey
+
+        RET
 
     decrypt_XORCipher ENDP
 
@@ -685,10 +685,10 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine10 upon entering of M (DE <-> EN)    
     toggleModeString PROC
 
-            MOV esi, OFFSET bannerLine10 + 22   
+        MOV esi, OFFSET bannerLine10 + 22   
 
-            CMP BYTE PTR [esi], 'E'        ; if text in banner is currently encryption
-            JE  updateToDecryption
+        CMP BYTE PTR [esi], 'E'        ; if text in banner is currently encryption
+        JE  updateToDecryption
 
         updateToEncryption:
             MOV BYTE PTR [esi],     'E'
@@ -714,7 +714,7 @@ LARGE_SIZE  = 4096
         JE  updateToText
 
         updateToFile:
-            MOV BYTE PTR [esi],      'F'
+            MOV BYTE PTR [esi],     'F'
             MOV BYTE PTR [esi + 1], 'I'
             MOV BYTE PTR [esi + 2], 'L'
             MOV BYTE PTR [esi + 3], 'E'
@@ -722,7 +722,7 @@ LARGE_SIZE  = 4096
             RET
 
         updateToText:
-            MOV BYTE PTR [esi],      'T'
+            MOV BYTE PTR [esi],     'T'
             MOV BYTE PTR [esi + 1], 'E'
             MOV BYTE PTR [esi + 2], 'X'
             MOV BYTE PTR [esi + 3], 'T'   
