@@ -465,24 +465,24 @@ LARGE_SIZE  = 4096
     processInput ENDP
 
 
-    ; updates the text of bannerLine10 upon entering of M (DE <-> EN)
+    ; updates the text of bannerLine10 upon entering of M (DE <-> EN)    
     toggleModeString PROC
-    
-        MOV esi, OFFSET (bannerLine10 + 22)          ; 22 being the relative position of start of encryption/decryption word in bannerLine10
 
-        CMP [esi], 'E'                               ; if text is currently ENCRYPTION
-        JE  updateToDecryption
+            MOV esi, OFFSET bannerLine10 + 22   
+
+            CMP BYTE PTR [esi], 'E'       ; if text in banner is currently encryption
+            JE  updateToDecryption
 
         updateToEncryption:
-            MOV [esi], 'D'
-            MOV [esi + 1], 'E'
-            
+            MOV BYTE PTR [esi],     'E'
+            MOV BYTE PTR [esi + 1], 'N'
+
             RET
 
         updateToDecryption:
-            MOV [esi], 'E'
-            MOV [esi + 1], 'N'    
-        
+            MOV BYTE PTR [esi],     'D'
+            MOV BYTE PTR [esi + 1], 'E'   
+
             RET
 
     toggleModeString ENDP
@@ -493,22 +493,22 @@ LARGE_SIZE  = 4096
         
         MOV esi, OFFSET (bannerLine11 + 22)          ; 22 being the relative position of start of encryption/decryption word in bannerLine10
 
-        CMP [esi], 'F'                               ; if text is currently FILE
+        CMP BYTE PTR [esi], 'F'                               ; if text is currently FILE
         JE  updateToText
 
         updateToFile:
-            MOV [esi],     'F'
-            MOV [esi + 1], 'I'
-            MOV [esi + 2], 'L'
-            MOV [esi + 3], 'E'
+            MOV BYTE PTR [esi],     'F'
+            MOV BYTE PTR [esi + 1], 'I'
+            MOV BYTE PTR [esi + 2], 'L'
+            MOV BYTE PTR [esi + 3], 'E'
             
             RET
 
         updateToText:
-            MOV [esi],     'T'
-            MOV [esi + 1], 'E'
-            MOV [esi + 2], 'X'
-            MOV [esi + 3], 'T'  
+            MOV BYTE PTR [esi],     'T'
+            MOV BYTE PTR [esi + 1], 'E'
+            MOV BYTE PTR [esi + 2], 'X'
+            MOV BYTE PTR [esi + 3], 'T'  
         
             RET
 
