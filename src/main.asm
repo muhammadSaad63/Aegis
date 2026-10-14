@@ -134,23 +134,36 @@ LARGE_SIZE  = 4096
 
 
     ; dynamically chooses the enc/dec algo to use based upon userChoice
-    callAlgorithm PROC
+    dispatchCipher PROC
 
-        DEC eax                     ; Convert 1-based menu choice to 0-based index (0 = XOR, 1 = Caesar, etc.)
+        MOV eax, activeCipherIndex
 
         ; Check whether we are in Encryption or Decryption mode
             CMP isModeEncryption, 1
-            JE  callEncryptionTable
+            JE  dispatchEncryption
 
-        callDecryptionTable:
+        dispatchDecryption:
             CALL decryptionCiphers[eax * TYPE decryptionCiphers]
             RET
 
-        callEncryptionTable:
+        dispatchEncryption:
             CALL encryptionCiphers[eax * TYPE encryptionCiphers]
             RET
 
-    callAlgorithm ENDP
+    dispatchCipher ENDP
+
+
+    ; responsible for managing and carrying the ciphers
+    executeEngine PROC
+
+        MOV activeCipherIndex, eax   ; Save chosen cipher index globally
+
+        ; check input mode: isInputFile (0: Text, 1: File)
+            CMP isInputFile, 1
+            JE  runFileMode
+
+
+    executeEngine ENDP
 
 
     ; continously reads & writes data from the files & performs algorithms on em
@@ -158,11 +171,11 @@ LARGE_SIZE  = 4096
 
         ; reads up to 4,096 bytes from inputHandle and put them into dataBuffer
         readDataFromFile:
-                MOV  eax, inputHandle
-                MOV  edx, OFFSET dataBuffer
-                MOV  ecx, LARGE_SIZE                       ; LARGE_SIZE = 4096 bytes
-                CALL ReadFromFile
-                JC   handleError
+            MOV  eax, inputHandle
+            MOV  edx, OFFSET dataBuffer
+            MOV  ecx, LARGE_SIZE                       ; LARGE_SIZE = 4096 bytes
+            CALL ReadFromFile
+            JC   handleError
 
         checkEOF:
             MOV bytesRead, eax                            ; eax holds the exact number of bytes read
@@ -482,9 +495,10 @@ LARGE_SIZE  = 4096
 
         ; if none of above, its a cipher choice (1-5)
             SUB   al, '0'            ; converting ascii to int (1-5)
+            DEC   al
             MOVZX eax, al
-            CALL  callAlgorithm
 
+            CALL  executeCipher
             RET
 
         doToggleMode:
