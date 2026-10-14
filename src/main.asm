@@ -330,6 +330,7 @@ LARGE_SIZE  = 4096
 
     ; a very basic cipher which encrypts by shifting each char in the text forward (by ascii) by some key amount
     encrypt_CaesarCipher PROC
+
         initializeRegs:
                 MOV esi, OFFSET dataBuffer                            ; points to source data chunk
                 MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
@@ -370,7 +371,7 @@ LARGE_SIZE  = 4096
                 MOV [esi], al                                         ; saves transformed byte back inPlace
 
         skipByte:
-            INC esi                                                   ; move to next byte of dataBuffer
+            INC  esi                                                   ; move to next byte of dataBuffer
             LOOP applyCipher
 
         RET
@@ -378,8 +379,54 @@ LARGE_SIZE  = 4096
     encrypt_CaesarCipher ENDP
 
 
+    ; the decryption algo for the caesar cipher which decrypts by subtracting the key from the text instead of adding it
     decrypt_CaesarCipher PROC
+
+        initializeRegs:
+            MOV esi, OFFSET dataBuffer                            ; points to source data chunk
+            MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
+            MOV bl, 3                                             ; shift of 3 used in encryption
+
+        applyCipher:
+            MOV al, [esi]                                         ; Load current byte
+
+            checkUpperCase:
+                ; check if byte is uppercase (A-Z -> ascii 65 to 90)
+                CMP al, 'A'
+                JB  skipByte                                      ; skip if below 'A'
+                CMP al, 'Z'
+                JA  checkLowerCase                                ; if above 'Z', check lowercase
+
+                ; handle uppercase reverse shift with wrapAround
+                SUB al, bl                                        ; subtract shift
+                CMP al, 'A'                                       
+                JAE storeByte                                     ; stores if greater than or equal to 'A'
+                ADD al, 26                                        ; wrap around if past 'A' downwards
+                JMP storeByte
+
+            checkLowerCase:
+                ; check if byte is lowercase (a-z -> ascii 97 to 122)
+                CMP al, 'a'
+                JB  skipByte                                      ; skip if between 'Z' and 'a'
+                CMP al, 'z'
+                JA  skipByte                                      ; skip if above 'z'
+
+                ; handle lowercase reverse shift with wrapAround
+                SUB al, bl                                        ; subtract shift
+                CMP al, 'a'
+                JAE storeByte
+                ADD al, 26                                        ; wrap around if past 'a' downwards
+                JMP storeByte  
+
+            storeByte:
+                MOV [esi], al                                     ; saves transformed byte back in-place
+
+        skipByte:
+            INC  esi                                              ; move to next byte of dataBuffer
+            LOOP applyCipher
+
         RET
+
     decrypt_CaesarCipher ENDP
 
 
