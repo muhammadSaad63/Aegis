@@ -1,3 +1,4 @@
+```assembly
 INCLUDE Irvine32.inc
 
 ; constants
@@ -15,7 +16,7 @@ LARGE_SIZE  = 4096
     ; string buffers
     keyBuffer      BYTE SMALL_SIZE  DUP(?)
     dataBuffer     BYTE LARGE_SIZE  DUP(?)
-	inputFilePath  BYTE MEDIUM_SIZE DUP(?)
+    inputFilePath  BYTE MEDIUM_SIZE DUP(?)
     outputFilePath BYTE MEDIUM_SIZE DUP(?)
 
     ; prompt strings
@@ -25,17 +26,24 @@ LARGE_SIZE  = 4096
     errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
     successMsg     BYTE "Success!", 0
 
-    ; Array of procedure pointers (each OFFSET is 4 bytes)
-    cipherJumpTable DWORD   OFFSET XORCipher,
-                            OFFSET CaesarCipher,
-                            OFFSET RailFenceCipher,
-                            OFFSET VigenereCipher,
-                            OFFSET RC4Cipher,
-                            OFFSET ChaCha20Cipher
+    ; arr of procedure pointers
+    encryptionCiphers DWORD OFFSET encrypt_XORCipher,
+                        OFFSET encrypt_CaesarCipher,
+                        OFFSET encrypt_RailFenceCipher,
+                        OFFSET encrypt_VigenereCipher,
+                        OFFSET encrypt_RC4Cipher,
+                        OFFSET encrypt_ChaCha20Cipher
+
+    decryptionCiphers DWORD OFFSET decrypt_XORCipher,
+                        OFFSET decrypt_CaesarCipher,
+                        OFFSET decrypt_RailFenceCipher,
+                        OFFSET decrypt_VigenereCipher,
+                        OFFSET decrypt_RC4Cipher,
+                        OFFSET decrypt_ChaCha20Cipher
 
     ; using indivdual lines instead of a single, long string due to max line length limit in masm issue
     bannerLine1  BYTE "===================================================", 0Ah, 0Dh, 0
-    bannerLine2  BYTE "                   [  A E G I S  ]                 ", 0Ah, 0Dh, 0
+    bannerLine2  BYTE "                    [  A E G I S  ]                 ", 0Ah, 0Dh, 0
     bannerLine3  BYTE "         Modular Cryptographic Engine v1.0         ", 0Ah, 0Dh, 0
     bannerLine4  BYTE "===================================================", 0Ah, 0Dh, 0
     bannerLine5  BYTE "                                                   ", 0Ah, 0Dh, 0
@@ -43,8 +51,8 @@ LARGE_SIZE  = 4096
     bannerLine7  BYTE "  [2] Caesar Cipher         [5] RC4/ChaCha20 ARX   ", 0Ah, 0Dh, 0
     bannerLine8  BYTE "  [3] Rail Fence                                   ", 0Ah, 0Dh, 0
     bannerLine9  BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
-    bannerLine10 BYTE "  [M] Toggle Mode:  [ ENCRYPTION ]                 ", 0Ah, 0Dh, 0
-    bannerLine11 BYTE "  [I] Toggle Input: [ FILE ]                       ", 0Ah, 0Dh, 0
+    bannerLine10 BYTE "  [M] Toggle Mode:   [ ENCRYPTION ]                ", 0Ah, 0Dh, 0
+    bannerLine11 BYTE "  [I] Toggle Input:  [ FILE ]                      ", 0Ah, 0Dh, 0
     bannerLine12 BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
     bannerLine13 BYTE "  [X] Exit Aegis                                   ", 0Ah, 0Dh, 0 
     bannerLine14 BYTE "                                                   ", 0Ah, 0Dh, 0 
@@ -55,7 +63,7 @@ LARGE_SIZE  = 4096
     invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}.", 0
 
     ; control flags
-    isInputFile      BYTE 0                 ; 0: text, 1: file             | initially set for text input
+    isInputFile      BYTE 0                 ; 0: text, 1: file              | initially set for text input
     isModeEncryption BYTE 1                 ; 0: decryption, 1: encryption | initially set for encryption
 
 .code
@@ -116,11 +124,11 @@ LARGE_SIZE  = 4096
             MOV  edx, OFFSET errOpenMsg
             CALL WriteString
             CALL Crlf
-            STC                  ; set carry flag to indicate error
+            STC                    ; set carry flag to indicate error
             RET
 
         openSuccess:
-            CLC                  ; clear carry flag on success
+            CLC                    ; clear carry flag on success
             RET
 
     openFiles ENDP
@@ -146,13 +154,13 @@ LARGE_SIZE  = 4096
         readDataFromFile:
                 MOV  eax, inputHandle
                 MOV  edx, OFFSET dataBuffer
-                MOV  ecx, LARGE_SIZE                      ; LARGE_SIZE = 4096 bytes
+                MOV  ecx, LARGE_SIZE                       ; LARGE_SIZE = 4096 bytes
                 CALL ReadFromFile
                 JC   handleError
 
         checkEOF:
-            MOV bytesRead, eax                                ; eax holds the exact number of bytes read
-            CMP eax, 0                                        ; checks if we hit the End Of File
+            MOV bytesRead, eax                            ; eax holds the exact number of bytes read
+            CMP eax, 0                                    ; checks if we hit the End Of File
             JE  closeFiles
 
         ; run xor transformation on the loaded chunk
@@ -186,7 +194,7 @@ LARGE_SIZE  = 4096
 
 
     ; performs the very basic XOR cipher on the data chunk
-    XORCipher PROC
+    encrypt_XORCipher PROC
 
         initializeRegs:
             MOV esi, OFFSET dataBuffer      ; holds address of data chunk
@@ -209,85 +217,115 @@ LARGE_SIZE  = 4096
 
         RET
 
-    XORCipher ENDP
+    encrypt_XORCipher ENDP
+
+
+    decrypt_XORCipher PROC
+        RET
+    decrypt_XORCipher ENDP
 
 
     ; very easy
-    CaesarCipher PROC
+    encrypt_CaesarCipher PROC
         initializeRegs:
-                MOV esi, OFFSET dataBuffer                              ; points to source data chunk
-                MOV ecx, bytesRead                                      ; the loop counter = bytes actually read
-                MOV bl, 3                                               ; using a arbitrary shift of 3 for now
+                MOV esi, OFFSET dataBuffer                            ; points to source data chunk
+                MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
+                MOV bl, 3                                             ; using a arbitrary shift of 3 for now
 
         applyCipher:
-            MOV al, [esi]                                               ; Load current byte
+            MOV al, [esi]                                             ; Load current byte
 
             checkUpperCase:
                 ; check if byte is uppercase (A-Z -> ascii 65 to 90)
                     CMP al, 'A'
-                    JB  skipByte                                        ; skip the byte if its ascii value is below A (ie it aint a alphabet)
+                    JB  skipByte                                      ; skip the byte if its ascii value is below A (ie it aint a alphabet)
                     CMP al, 'Z'
-                    JA  checkLowerCase                                  ; if the byte is greater than Z, go check if it is lowercase
+                    JA  checkLowerCase                                ; if the byte is greater than Z, go check if it is lowercase
                 
                 ; handle uppercase shift with wrapAround
-                    ADD al, bl                                          ; apply shift
-                    CMP al, 'Z'                                         
-                    JBE storeByte                                       ; stores the byte if it below or eual to Z
-                    SUB al, 26                                          ; wrap around if past Z
+                    ADD al, bl                                        ; apply shift
+                    CMP al, 'Z'                                       
+                    JBE storeByte                                     ; stores the byte if it below or eual to Z
+                    SUB al, 26                                        ; wrap around if past Z
                     JMP storeByte
 
             checkLowerCase:
                 ; check if byte is lowercased (a-z -> ascii 97 to 122)
                     CMP al, 'a'
-                    JB  skipByte                                        ; skips if ascii value of byte is > Z & < a (ie bw Z and a)
+                    JB  skipByte                                      ; skips if ascii value of byte is > Z & < a (ie bw Z and a)
                     CMP al, 'z'
-                    JA  skipByte                                        ; skips if ascii value of byte is > a (ie > 122)
+                    JA  skipByte                                      ; skips if ascii value of byte is > a (ie > 122)
 
                 ; handle lowerCase shift with wrapAround
-                    ADD al, bl                                          ; apply shift
+                    ADD al, bl                                        ; apply shift
                     CMP al, 'z'
                     JBE storeByte
-                    SUB al, 26                                          ; wrap around if past z
+                    SUB al, 26                                        ; wrap around if past z
                     JMP storeByte  
 
             storeByte:
-                MOV [esi], al                                           ; saves transformed byte back inPlace
+                MOV [esi], al                                         ; saves transformed byte back inPlace
 
         skipByte:
-            INC esi                                                     ; move to next byte of dataBuffer
+            INC esi                                                   ; move to next byte of dataBuffer
             LOOP applyCipher
 
         RET
 
-    CaesarCipher ENDP
+    encrypt_CaesarCipher ENDP
+
+
+    decrypt_CaesarCipher PROC
+        RET
+    decrypt_CaesarCipher ENDP
 
 
     ; easy
-    RailFenceCipher PROC
+    encrypt_RailFenceCipher PROC
 
         ret
-    RailFenceCipher ENDP
+    encrypt_RailFenceCipher ENDP
+
+
+    decrypt_RailFenceCipher PROC
+        ret
+    decrypt_RailFenceCipher ENDP
 
 
     ; easy - medium
-    VigenereCipher PROC
+    encrypt_VigenereCipher PROC
 
         ret
-    VigenereCipher ENDP
+    encrypt_VigenereCipher ENDP
+
+
+    decrypt_VigenereCipher PROC
+        ret
+    decrypt_VigenereCipher ENDP
 
 
     ; medium
-    RC4Cipher PROC
+    encrypt_RC4Cipher PROC
 
         ret
-    RC4Cipher ENDP
+    encrypt_RC4Cipher ENDP
+
+
+    decrypt_RC4Cipher PROC
+        ret
+    decrypt_RC4Cipher ENDP
 
 
     ; medium - hard
-    ChaCha20Cipher PROC
+    encrypt_ChaCha20Cipher PROC
 
         ret
-    ChaCha20Cipher ENDP
+    encrypt_ChaCha20Cipher ENDP
+
+
+    decrypt_ChaCha20Cipher PROC
+        ret
+    decrypt_ChaCha20Cipher ENDP
 
 
     printMenu PROC
@@ -388,9 +426,9 @@ LARGE_SIZE  = 4096
                 JE  validInput
 
             ; check for cipher choices ('1' through '5')
-                CMP al, '1'              ; < 1
+                CMP al, '1'             ; < 1
                 JB  invalidInput         
-                CMP al, '5'              ; >= 1 & <= 5
+                CMP al, '5'             ; >= 1 & <= 5
                 JBE validInput              
         
         invalidInput:
@@ -403,7 +441,7 @@ LARGE_SIZE  = 4096
             CALL WriteString
 
             ; reset text color to white
-            MOV  eax, 07h               
+            MOV  eax, 07h                 
             CALL SetTextColor
             
             CALL Crlf
@@ -460,7 +498,7 @@ LARGE_SIZE  = 4096
             RET
 
         doExit:
-            EXIT                   ; Or jump to your exit program label
+            EXIT                     ; Or jump to your exit program label
 
     processInput ENDP
 
@@ -470,7 +508,7 @@ LARGE_SIZE  = 4096
 
             MOV esi, OFFSET bannerLine10 + 22   
 
-            CMP BYTE PTR [esi], 'E'       ; if text in banner is currently encryption
+            CMP BYTE PTR [esi], 'E'        ; if text in banner is currently encryption
             JE  updateToDecryption
 
         updateToEncryption:
@@ -481,7 +519,7 @@ LARGE_SIZE  = 4096
 
         updateToDecryption:
             MOV BYTE PTR [esi],     'D'
-            MOV BYTE PTR [esi + 1], 'E'   
+            MOV BYTE PTR [esi + 1], 'E'    
 
             RET
 
@@ -493,11 +531,11 @@ LARGE_SIZE  = 4096
         
         MOV esi, OFFSET (bannerLine11 + 22)          ; 22 being the relative position of start of encryption/decryption word in bannerLine10
 
-        CMP BYTE PTR [esi], 'F'                               ; if text is currently FILE
+        CMP BYTE PTR [esi], 'F'                            ; if text is currently FILE
         JE  updateToText
 
         updateToFile:
-            MOV BYTE PTR [esi],     'F'
+            MOV BYTE PTR [esi],      'F'
             MOV BYTE PTR [esi + 1], 'I'
             MOV BYTE PTR [esi + 2], 'L'
             MOV BYTE PTR [esi + 3], 'E'
@@ -505,10 +543,10 @@ LARGE_SIZE  = 4096
             RET
 
         updateToText:
-            MOV BYTE PTR [esi],     'T'
+            MOV BYTE PTR [esi],      'T'
             MOV BYTE PTR [esi + 1], 'E'
             MOV BYTE PTR [esi + 2], 'X'
-            MOV BYTE PTR [esi + 3], 'T'  
+            MOV BYTE PTR [esi + 3], 'T'   
         
             RET
 
@@ -516,7 +554,7 @@ LARGE_SIZE  = 4096
 
 
 
-	main PROC
+    main PROC
         ; CALL promptUser
         ; CALL openFiles
         ; JC   exitProgram        ; exit if opening files failed (checks if carry flag is set)
@@ -530,12 +568,13 @@ LARGE_SIZE  = 4096
             CALL printMenu
             CALL getInput
             CALL processInput
+
             JMP  program
 
         endProg:
             RET
 
-	main ENDP
+    main ENDP
 
 
 END main
