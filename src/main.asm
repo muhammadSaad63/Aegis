@@ -153,7 +153,7 @@ LARGE_SIZE  = 4096
     dispatchCipher ENDP
 
 
-    ; responsible for managing and carrying the ciphers
+    ; responsible for managing and carrying the ciphers-stuff
     executeEngine PROC
 
         MOV activeCipherIndex, eax   ; Save chosen cipher index globally
@@ -162,6 +162,65 @@ LARGE_SIZE  = 4096
             CMP isInputFile, 1
             JE  runFileMode
 
+        runTextMode:
+            ; printing prompt
+            MOV  edx, OFFSET promptKey
+            CALL WriteString
+
+            ; reading plaintext
+            MOV  edx, OFFSET dataBuffer
+            MOV  ecx, LARGE_SIZE
+            CALL ReadString                          ; grabs text string from user
+            MOV  bytesRead, eax                      ; saves string length
+
+            ; run active cipher in place
+            CALL dispatchCipher
+
+            ; print ciphertext
+            MOV edx, OFFSET dataBuffer
+            CALL WriteString
+            CALL Crlf
+
+            RET
+
+        runFileMode:
+            CALL promptUser              ; get source and destination paths + key
+            CALL openFiles               ; opens handles
+            JC   engineClose             ; aborts if file open failed
+
+            fileLoop:
+                ; reading data chunk from input file into dataBuffer
+                CALL ReadFromFile
+                JC   closeFiles
+                MOV  bytesRead, eax
+                CMP  eax, 0
+                JE   engineSuccess       ; EOF reached
+
+                ; run active cipher on chunk
+                CALL dispatchCipher
+
+                ; Write transformed chunk
+                    MOV  eax, outputHandle
+                    MOV  edx, OFFSET dataBuffer
+                    MOV  ecx, bytesRead
+                    CALL WriteToFile
+                    JC   closeFiles
+
+                JMP  fileLoop
+
+        engineSuccess:
+            MOV edx, OFFSET successMsg
+            CALL WriteString
+            CALL Crlf
+
+        closeFiles:
+            MOV  eax, inputHandle
+            CALL CloseFile
+            MOV  eax, outputHandle
+            CALL CloseFile
+
+        engineClose:
+            RET
 
     executeEngine ENDP
 
