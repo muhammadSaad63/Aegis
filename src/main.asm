@@ -33,6 +33,14 @@ LARGE_SIZE  = 4096
     scanIndex      DWORD  ?
     outputIndex    DWORD  ?
 
+    ; Array of procedure pointers (each OFFSET is 4 bytes)
+    cipherJumpTable DWORD OFFSET XORCipher,
+                          OFFSET CaesarCipher,
+                          OFFSET RailFenceCipher,
+                          OFFSET VigenereCipher,
+                          OFFSET RC4Cipher,
+                          OFFSET ChaCha20Cipher
+
 .code
 
     ; collects file paths and passphrase from the user
