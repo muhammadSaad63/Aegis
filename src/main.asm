@@ -61,6 +61,8 @@ LARGE_SIZE  = 4096
     bannerLine16 BYTE "                                                   ", 0Ah, 0Dh, 0
     bannerLine17 BYTE "Select an option (1 - 5 / M / I / X): ", 0
 
+    invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}.", 0
+
 .code
 
     ; collects file paths and passphrase from the user
@@ -372,40 +374,54 @@ LARGE_SIZE  = 4096
     getInput PROC
 
         promptLoop:
-            MOV EDX, OFFSET bannerLine17
+            ; printing prompt msg
+                CALL Crlf
+                MOV EDX, OFFSET bannerLine17
+                CALL WriteString
+
+            ; displaying the char which user input
+                CALL ReadChar
+                CALL WriteChar
+                CALL Crlf
+
+            ; check for exit ('X' or 'x')
+                CMP al, 'X'
+                JE  validInput
+                CMP al, 'x'
+                JE  validInput
+
+            ; check for mode toggle ('M' or 'm')
+                CMP al, 'M'
+                JE  validInput
+                CMP al, 'm'
+                JE  validInput
+
+            ; check for input toggle ('I' or 'i')
+                CMP al, 'I'
+                JE  validInput
+                CMP al, 'i'
+                JE  validInput
+
+            ; check for cipher choices ('1' through '5')
+                CMP al, '1'              ; < 1
+                JB  invalidInput         
+                CMP al, '5'              ; >= 1 & <= 5
+                JBE validInput              
+        
+        invalidInput:
+            ; set textColor to red
+            MOV  eax, 0Ch                    
+            CALL SetTextColor
+            
+            ; print error string
+            MOV  edx, OFFSET invalidInputMsg
             CALL WriteString
 
-            CALL ReadChar          ; Waits for keystroke; ASCII code placed in AL
-            CALL WriteChar         ; Echoes character to screen
-            CALL Crlf              ; Move down cleanly
-
-            ; 1. Check for Exit ('X' or 'x')
-            CMP al, 'X'
-            JE  validInput
-            CMP al, 'x'
-            JE  validInput
-
-            ; 2. Check for Toggle Mode ('M' or 'm')
-            CMP al, 'M'
-            JE  validInput
-            CMP al, 'm'
-            JE  validInput
-
-            ; 3. Check for Toggle Input ('I' or 'i')
-            CMP al, 'I'
-            JE  validInput
-            CMP al, 'i'
-            JE  validInput
-
-            ; 4. Check for Cipher Choices ('1' through '5')
-            CMP al, '1'
-            JB  invalidKey         ; Below '1' is invalid
-            CMP al, '5'
-            JBE validInput         ; Between '1' and '5' is valid
-        
-        ; Fallthrough for anything above '5'
-        invalidKey:
-            ; (Optional: Print a short error or just loop back)
+            ; reset text color to white
+            MOV  eax, 07h               
+            CALL SetTextColor
+            
+            CALL Crlf
             JMP promptLoop
 
         validInput:
@@ -428,7 +444,7 @@ LARGE_SIZE  = 4096
             CALL printMenu
             CALL getInput
 
-            CALL processInput
+            ;CALL processInput
             JC   endProg
             JMP  program
 
