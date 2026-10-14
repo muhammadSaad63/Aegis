@@ -62,8 +62,9 @@ LARGE_SIZE  = 4096
     invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}.", 0
 
     ; control flags
-    isInputFile      BYTE 0                 ; 0: text, 1: file              | initially set for text input
-    isModeEncryption BYTE 1                 ; 0: decryption, 1: encryption | initially set for encryption
+    isInputFile       BYTE  0               ; 0: text, 1: file              | initially set for text input
+    isModeEncryption  BYTE  1               ; 0: decryption, 1: encryption  | initially set for encryption
+    activeCipherIndex DWORD 0
 
 .code
 
@@ -557,7 +558,7 @@ LARGE_SIZE  = 4096
             DEC   al
             MOVZX eax, al
 
-            CALL  executeCipher
+            CALL  executeEngine
             RET
 
         doToggleMode:
