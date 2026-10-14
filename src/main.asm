@@ -226,50 +226,50 @@ LARGE_SIZE  = 4096
     executeEngine ENDP
 
 
-    ; continously reads & writes data from the files & performs algorithms on em
-    ProcessStream PROC
+    ; ; continously reads & writes data from the files & performs algorithms on em
+    ; ProcessStream PROC
 
-        ; reads up to 4,096 bytes from inputHandle and put them into dataBuffer
-        readDataFromFile:
-            MOV  eax, inputHandle
-            MOV  edx, OFFSET dataBuffer
-            MOV  ecx, LARGE_SIZE                       ; LARGE_SIZE = 4096 bytes
-            CALL ReadFromFile
-            JC   handleError
+    ;     ; reads up to 4,096 bytes from inputHandle and put them into dataBuffer
+    ;     readDataFromFile:
+    ;         MOV  eax, inputHandle
+    ;         MOV  edx, OFFSET dataBuffer
+    ;         MOV  ecx, LARGE_SIZE                       ; LARGE_SIZE = 4096 bytes
+    ;         CALL ReadFromFile
+    ;         JC   handleError
 
-        checkEOF:
-            MOV bytesRead, eax                            ; eax holds the exact number of bytes read
-            CMP eax, 0                                    ; checks if we hit the End Of File
-            JE  closeFiles
+    ;     checkEOF:
+    ;         MOV bytesRead, eax                            ; eax holds the exact number of bytes read
+    ;         CMP eax, 0                                    ; checks if we hit the End Of File
+    ;         JE  closeFiles
 
-        ; run xor transformation on the loaded chunk
-        ;CALL XORCipher
+    ;     ; run xor transformation on the loaded chunk
+    ;     ;CALL XORCipher
 
-        ; writes transformed chunk to output file
-        writeDataToFile:
-            MOV  eax, outputHandle
-            MOV  edx, OFFSET dataBuffer
-            MOV  ecx, bytesRead
-            CALL WriteToFile
-            JC   handleError
+    ;     ; writes transformed chunk to output file
+    ;     writeDataToFile:
+    ;         MOV  eax, outputHandle
+    ;         MOV  edx, OFFSET dataBuffer
+    ;         MOV  ecx, bytesRead
+    ;         CALL WriteToFile
+    ;         JC   handleError
 
-            JMP  readDataFromFile
+    ;         JMP  readDataFromFile
 
-        closeFiles:
-            MOV  eax, inputHandle
-            CALL CloseFile
-            MOV  eax, outputHandle
-            CALL CloseFile
+    ;     closeFiles:
+    ;         MOV  eax, inputHandle
+    ;         CALL CloseFile
+    ;         MOV  eax, outputHandle
+    ;         CALL CloseFile
 
-        processSuccess:
-            MOV  edx, OFFSET successMsg
-            CALL WriteString
-            CALL Crlf
+    ;     processSuccess:
+    ;         MOV  edx, OFFSET successMsg
+    ;         CALL WriteString
+    ;         CALL Crlf
 
-        handleError:
-            RET
+    ;     handleError:
+    ;         RET
 
-    ProcessStream ENDP
+    ; ProcessStream ENDP
 
 
     ; performs the very basic XOR cipher on the data chunk
