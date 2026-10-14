@@ -1,4 +1,3 @@
-```assembly
 INCLUDE Irvine32.inc
 
 ; constants
@@ -43,7 +42,7 @@ LARGE_SIZE  = 4096
 
     ; using indivdual lines instead of a single, long string due to max line length limit in masm issue
     bannerLine1  BYTE "===================================================", 0Ah, 0Dh, 0
-    bannerLine2  BYTE "                    [  A E G I S  ]                 ", 0Ah, 0Dh, 0
+    bannerLine2  BYTE "                   [  A E G I S  ]                 ", 0Ah, 0Dh, 0
     bannerLine3  BYTE "         Modular Cryptographic Engine v1.0         ", 0Ah, 0Dh, 0
     bannerLine4  BYTE "===================================================", 0Ah, 0Dh, 0
     bannerLine5  BYTE "                                                   ", 0Ah, 0Dh, 0
@@ -140,8 +139,7 @@ LARGE_SIZE  = 4096
         DEC eax                     ; Convert 1-based menu choice to 0-based index (0 = XOR, 1 = Caesar, etc.)
 
         ; Check whether we are in Encryption or Decryption mode
-            MOV bl, isModeEncryption
-            CMP bl, 1
+            CMP isModeEncryption, 1
             JE  callEncryptionTable
 
         callDecryptionTable:
@@ -172,7 +170,7 @@ LARGE_SIZE  = 4096
             JE  closeFiles
 
         ; run xor transformation on the loaded chunk
-        CALL XORCipher
+        ;CALL XORCipher
 
         ; writes transformed chunk to output file
         writeDataToFile:
