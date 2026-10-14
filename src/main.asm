@@ -510,61 +510,61 @@ LARGE_SIZE  = 4096
 
         CALL ClrScr
 
-        ; Set text to Bright Cyan (0Bh) for the header banner
-        MOV eax, 0Bh                    
-        CALL SetTextColor
+        ; set text to Bright Cyan (0Bh) for the header banner
+            MOV eax, 0Bh                    
+            CALL SetTextColor
 
-        MOV EDX, OFFSET bannerLine1
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine2
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine3
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine4
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine5
-        CALL WriteString
+            MOV EDX, OFFSET bannerLine1
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine2
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine3
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine4
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine5
+            CALL WriteString
 
-        ; Change text to Bright Yellow (0Eh) for the ciphers
-        MOV eax, 0Eh                    
-        CALL SetTextColor
+        ; change text to Bright Yellow (0Eh) for the ciphers
+            MOV eax, 0Eh                    
+            CALL SetTextColor
 
-        MOV EDX, OFFSET bannerLine6
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine7
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine8
-        CALL WriteString
+            MOV EDX, OFFSET bannerLine6
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine7
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine8
+            CALL WriteString
 
-        ; Change text to Darker Gray/Blue (08h) for the divider lines & toggles
-        MOV eax, 08h                    
-        CALL SetTextColor
+        ; change text to Darker Gray/Blue (08h) for the divider lines & toggles
+            MOV eax, 08h                    
+            CALL SetTextColor
 
-        MOV EDX, OFFSET bannerLine9
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine10
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine11
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine12
-        CALL WriteString
+            MOV EDX, OFFSET bannerLine9
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine10
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine11
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine12
+            CALL WriteString
 
-        ; Change text to Bright Red (0Ch) for Exit and Prompt section
-        MOV eax, 0Ch                    
-        CALL SetTextColor
+        ; change text to Bright Red (0Ch) for Exit and Prompt section
+            MOV eax, 0Ch                    
+            CALL SetTextColor
 
-        MOV EDX, OFFSET bannerLine13
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine14
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine15
-        CALL WriteString
-        MOV EDX, OFFSET bannerLine16
-        CALL WriteString
+            MOV EDX, OFFSET bannerLine13
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine14
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine15
+            CALL WriteString
+            MOV EDX, OFFSET bannerLine16
+            CALL WriteString
 
-        ; Reset back to default white-on-black (07h) before reading user choice
-        MOV eax, 07h                    
-        CALL SetTextColor
+        ; reset color back to default white-on-black (07h)
+            MOV eax, 07h                    
+            CALL SetTextColor
 
         RET
 
