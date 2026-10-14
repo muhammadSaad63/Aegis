@@ -108,6 +108,28 @@ LARGE_SIZE  = 4096
 
     openFiles ENDP
 
+    ; dynamically chooses the enc/dec algo to use based upon userChoice
+    callAlgorithm PROC
+
+        ; Bounds check to make sure it's valid (0 to 5)
+        validateChoice:
+            CMP eax, LENGTHOF cipherJumpTable
+            JBE callCipher
+
+        invalidChoice:
+            MOV  edx, OFFSET invalidChoice
+            CALL WriteString
+            RET
+
+        ; Call the procedure dynamically using the table offset!
+        callCipher:
+            DEC eax                     ; Convert 1-based menu choice to 0-based index (0 = XOR, 1 = Caesar, etc.)
+            CALL cipherJumpTable[eax * TYPE cipherJumpTable]
+
+        RET
+        
+    callAlgorithm ENDP
+
 
     ; continously reads & writes data from the files & performs algorithms on em
     ProcessStream PROC
