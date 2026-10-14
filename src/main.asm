@@ -25,15 +25,6 @@ LARGE_SIZE  = 4096
     errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
     successMsg     BYTE "Success!", 0
 
-    ; Rail Fence Cipher variables
-    railBuffer     BYTE   LARGE_SIZE DUP(?)
-    railCount      DWORD  ?
-    targetRail     DWORD  ?
-    currentRail    DWORD  ?
-    railDirection  SDWORD ?
-    scanIndex      DWORD  ?
-    outputIndex    DWORD  ?
-
     ; Array of procedure pointers (each OFFSET is 4 bytes)
     cipherJumpTable DWORD   OFFSET XORCipher,
                             OFFSET CaesarCipher,
@@ -62,6 +53,10 @@ LARGE_SIZE  = 4096
     bannerLine17 BYTE "Select an option (1 - 5 / M / I / X): ", 0
 
     invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}.", 0
+
+    ; control flags
+    isInputFile      BYTE 1
+    isModeEncryption BYTE 1
 
 .code
 
@@ -432,6 +427,7 @@ LARGE_SIZE  = 4096
 
     ; receives the validated character in AL and processes it
     processInput PROC
+
         ; check exit
             CMP al, 'X'
             JE  doExit
