@@ -635,14 +635,6 @@ LARGE_SIZE  = 4096
 
 
     main PROC
-        ; CALL promptUser
-        ; CALL openFiles
-        ; JC   exitProgram        ; exit if opening files failed (checks if carry flag is set)
-
-        ; CALL ProcessStream
-
-        ; exitProgram:
-        ;     exit
 
         program:
             CALL printMenu
@@ -650,9 +642,6 @@ LARGE_SIZE  = 4096
             CALL processInput
 
             JMP  program
-
-        endProg:
-            RET
 
     main ENDP
 
