@@ -430,6 +430,46 @@ LARGE_SIZE  = 4096
     getInput ENDP
 
 
+    ; receives the validated character in AL and processes it
+    processInput PROC
+        ; check exit
+            CMP al, 'X'
+            JE  doExit
+            CMP al, 'x'
+            JE  doExit
+
+        ; check toggle mode
+            CMP al, 'M'
+            JE  doToggleMode
+            CMP al, 'm'
+            JE  doToggleMode
+
+        ; check toggle input-source
+            CMP al, 'I'
+            JE  doToggleInput
+            CMP al, 'i'
+            JE  doToggleInput
+
+        ; if none of above, its a cipher choice (1-5)
+            SUB   al, '0'            ; converting ascii to int (1-5)
+;            MOVZX eax, al
+            CALL  callAlgorithm
+            RET
+
+        doToggleMode:
+            ; Call your mode-toggling logic here
+            RET
+
+        doToggleInput:
+            ; Call your input-source-toggling logic here
+            RET
+
+        doExit:
+            EXIT                   ; Or jump to your exit program label
+
+    processInput ENDP
+
+
 	main PROC
         ; CALL promptUser
         ; CALL openFiles
