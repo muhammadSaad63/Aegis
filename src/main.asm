@@ -433,48 +433,76 @@ LARGE_SIZE  = 4096
     ; easy
     encrypt_RailFenceCipher PROC
 
-        ret
+        ; idhar likho
+
+        RET
+
     encrypt_RailFenceCipher ENDP
 
 
     decrypt_RailFenceCipher PROC
-        ret
+
+        ; idhar likho
+
+        RET
+
     decrypt_RailFenceCipher ENDP
 
 
     ; easy - medium
     encrypt_VigenereCipher PROC
 
-        ret
+        ; idhar likho
+
+        RET
+
     encrypt_VigenereCipher ENDP
 
 
     decrypt_VigenereCipher PROC
-        ret
+
+        ; idhar likho
+
+        RET
+
     decrypt_VigenereCipher ENDP
 
 
     ; medium
     encrypt_RC4Cipher PROC
 
-        ret
+        ; idhar likho
+
+        RET
+
     encrypt_RC4Cipher ENDP
 
 
     decrypt_RC4Cipher PROC
-        ret
+
+        ; idhar likho
+
+        RET
+
     decrypt_RC4Cipher ENDP
 
 
     ; medium - hard
     encrypt_ChaCha20Cipher PROC
 
-        ret
+        ; idhar likho
+
+        RET
+
     encrypt_ChaCha20Cipher ENDP
 
 
     decrypt_ChaCha20Cipher PROC
-        ret
+
+        ; idhar likho
+
+        RET
+
     decrypt_ChaCha20Cipher ENDP
 
 
