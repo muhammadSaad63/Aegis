@@ -23,6 +23,7 @@ LARGE_SIZE  = 4096
     promptOut      BYTE "Enter output file path:                ", 0
     promptKey      BYTE "Enter encryption key/passphrase:       ", 0
     errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
+    successMsg     BYTE "Success!", 0
 
     ; Rail Fence Cipher variables
     railBuffer     BYTE   LARGE_SIZE DUP(?)
@@ -34,12 +35,29 @@ LARGE_SIZE  = 4096
     outputIndex    DWORD  ?
 
     ; Array of procedure pointers (each OFFSET is 4 bytes)
-    cipherJumpTable DWORD OFFSET XORCipher,
-                          OFFSET CaesarCipher,
-                          OFFSET RailFenceCipher,
-                          OFFSET VigenereCipher,
-                          OFFSET RC4Cipher,
-                          OFFSET ChaCha20Cipher
+    cipherJumpTable DWORD   OFFSET XORCipher,
+                            OFFSET CaesarCipher,
+                            OFFSET RailFenceCipher,
+                            OFFSET VigenereCipher,
+                            OFFSET RC4Cipher,
+                            OFFSET ChaCha20Cipher
+
+    ; using indivdual lines instead of a single, long string due to max line length limit in masm issue
+    bannerLine1  BYTE "===================================================", 0Ah, 0Dh, 0
+    bannerLine2  BYTE "                    [ A E G I S ]                  ", 0Ah, 0Dh, 0
+    bannerLine3  BYTE "         Modular Cryptographic Engine v1.0         ", 0Ah, 0Dh, 0
+    bannerLine4  BYTE "===================================================", 0Ah, 0Dh, 0
+    bannerLine5  BYTE "  [1] XOR Cipher            [5] RC4 Stream         ", 0Ah, 0Dh, 0
+    bannerLine6  BYTE "  [2] Caesar Cipher         [6] ChaCha20 ARX       ", 0Ah, 0Dh, 0
+    bannerLine7  BYTE "  [3] Rail Fence            [7] DES (Hard)         ", 0Ah, 0Dh, 0
+    bannerLine8  BYTE "  [4] Vigenère Cipher       [8] AES-128 (Very Hard)", 0Ah, 0Dh, 0
+    bannerLine9  BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
+    bannerLine10 BYTE "  [M] Toggle Mode: [ ENCRYPTION ]                  ", 0Ah, 0Dh, 0
+    bannerLine11 BYTE "  [I] Toggle Input: [ FILE ]                       ", 0Ah, 0Dh, 0
+    bannerLine12 BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
+    bannerLine13 BYTE "  [0] Exit Aegis                                   ", 0Ah, 0Dh, 0
+    bannerLine14 BYTE "===================================================", 0Ah, 0Dh, 0
+    bannerLine15 BYTE "Select an option (0-8): ", 0
 
 .code
 
@@ -108,6 +126,7 @@ LARGE_SIZE  = 4096
 
     openFiles ENDP
 
+
     ; dynamically chooses the enc/dec algo to use based upon userChoice
     callAlgorithm PROC
 
@@ -127,7 +146,7 @@ LARGE_SIZE  = 4096
             CALL cipherJumpTable[eax * TYPE cipherJumpTable]
 
         RET
-        
+
     callAlgorithm ENDP
 
 
@@ -281,16 +300,69 @@ LARGE_SIZE  = 4096
         ret
     ChaCha20Cipher ENDP
 
+    printMenu PROC
+
+        MOV EDX, OFFSET bannerLine1
+        CALL WriteString
+
+        MOV  EDX, OFFSET bannerLine2
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine3
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine4
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine5
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine6
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine7
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine8
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine9
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine10
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine11
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine12
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine13
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine14
+        CALL WriteString
+        
+        MOV  EDX, OFFSET bannerLine15
+        CALL WriteString
+
+        RET
+
+    printMenu ENDP
+
 
 	main PROC
-        CALL promptUser
-        CALL openFiles
-        JC   exitProgram        ; exit if opening files failed (checks if carry flag is set)
+        ; CALL promptUser
+        ; CALL openFiles
+        ; JC   exitProgram        ; exit if opening files failed (checks if carry flag is set)
 
-        CALL ProcessStream
+        ; CALL ProcessStream
 
-        exitProgram:
-            exit
+        ; exitProgram:
+        ;     exit
+
+        call printMenu
 
 	main ENDP
 
