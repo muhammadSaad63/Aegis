@@ -447,7 +447,8 @@ LARGE_SIZE  = 4096
             MOV al, isModeEncryption
             XOR al, 1                       ; toggling the value of the status flag
             MOV isModeEncryption, al
-
+            
+            CALL toggleModeString
             RET
 
         doToggleInput:
@@ -455,12 +456,64 @@ LARGE_SIZE  = 4096
             XOR al, 1                       ; toggling the value of the status flag
             MOV isInputFile, al
 
+            CALL toggleInputString
             RET
 
         doExit:
             EXIT                   ; Or jump to your exit program label
 
     processInput ENDP
+
+
+    ; updates the text of bannerLine10 upon entering of M (DE <-> EN)
+    toggleModeString PROC
+    
+        MOV esi, OFFSET (bannerLine10 + 22)          ; 22 being the relative position of start of encryption/decryption word in bannerLine10
+
+        CMP [esi], 'E'                               ; if text is currently ENCRYPTION
+        JE  updateToDecryption
+
+        updateToEncryption:
+            MOV [esi], 'D'
+            MOV [esi + 1], 'E'
+            
+            RET
+
+        updateToDecryption:
+            MOV [esi], 'E'
+            MOV [esi + 1], 'N'    
+        
+            RET
+
+    toggleModeString ENDP
+
+
+    ; updates the text of bannerLine11 upon entering of I (FILE <-> TEXT)
+    toggleInputString PROC
+        
+        MOV esi, OFFSET (bannerLine11 + 22)          ; 22 being the relative position of start of encryption/decryption word in bannerLine10
+
+        CMP [esi], 'F'                               ; if text is currently FILE
+        JE  updateToText
+
+        updateToFile:
+            MOV [esi],     'F'
+            MOV [esi + 1], 'I'
+            MOV [esi + 2], 'L'
+            MOV [esi + 3], 'E'
+            
+            RET
+
+        updateToText:
+            MOV [esi],     'T'
+            MOV [esi + 1], 'E'
+            MOV [esi + 2], 'X'
+            MOV [esi + 3], 'T'  
+        
+            RET
+
+    toggleInputString ENDP
+
 
 
 	main PROC
@@ -476,9 +529,7 @@ LARGE_SIZE  = 4096
         program:
             CALL printMenu
             CALL getInput
-
-            ;CALL processInput
-            JC   endProg
+            CALL processInput
             JMP  program
 
         endProg:
