@@ -137,12 +137,20 @@ LARGE_SIZE  = 4096
     ; dynamically chooses the enc/dec algo to use based upon userChoice
     callAlgorithm PROC
 
-        ; Call the procedure dynamically using the table offset!
-        callCipher:
-            DEC eax                     ; Convert 1-based menu choice to 0-based index (0 = XOR, 1 = Caesar, etc.)
-            CALL cipherJumpTable[eax * TYPE cipherJumpTable]
+        DEC eax                     ; Convert 1-based menu choice to 0-based index (0 = XOR, 1 = Caesar, etc.)
 
-        RET
+        ; Check whether we are in Encryption or Decryption mode
+            MOV bl, isModeEncryption
+            CMP bl, 1
+            JE  callEncryptionTable
+
+        callDecryptionTable:
+            CALL decryptionCiphers[eax * TYPE decryptionCiphers]
+            RET
+
+        callEncryptionTable:
+            CALL encryptionCiphers[eax * TYPE encryptionCiphers]
+            RET
 
     callAlgorithm ENDP
 
