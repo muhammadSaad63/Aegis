@@ -55,8 +55,8 @@ LARGE_SIZE  = 4096
     invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}.", 0
 
     ; control flags
-    isInputFile      BYTE 1
-    isModeEncryption BYTE 1
+    isInputFile      BYTE 0                 ; 0: text, 1: file             | initially set for text input
+    isModeEncryption BYTE 1                 ; 0: decryption, 1: encryption | initially set for encryption
 
 .code
 
@@ -128,16 +128,6 @@ LARGE_SIZE  = 4096
 
     ; dynamically chooses the enc/dec algo to use based upon userChoice
     callAlgorithm PROC
-
-        ; Bounds check to make sure it's valid (0 to 5)
-        validateChoice:
-            CMP eax, LENGTHOF cipherJumpTable
-            JBE callCipher
-
-        invalidChoice:
-            MOV  edx, OFFSET invalidChoice
-            CALL WriteString
-            RET
 
         ; Call the procedure dynamically using the table offset!
         callCipher:
@@ -448,16 +438,23 @@ LARGE_SIZE  = 4096
 
         ; if none of above, its a cipher choice (1-5)
             SUB   al, '0'            ; converting ascii to int (1-5)
-;            MOVZX eax, al
+            MOVZX eax, al
             CALL  callAlgorithm
+
             RET
 
         doToggleMode:
-            ; Call your mode-toggling logic here
+            MOV al, isModeEncryption
+            XOR al, 1                       ; toggling the value of the status flag
+            MOV isModeEncryption, al
+
             RET
 
         doToggleInput:
-            ; Call your input-source-toggling logic here
+            MOV al, isInputFile
+            XOR al, 1                       ; toggling the value of the status flag
+            MOV isInputFile, al
+
             RET
 
         doExit:
