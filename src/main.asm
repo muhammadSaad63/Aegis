@@ -27,18 +27,18 @@ LARGE_SIZE  = 4096
 
     ; arr of procedure pointers
     encryptionCiphers DWORD OFFSET encrypt_XORCipher,
-                        OFFSET encrypt_CaesarCipher,
-                        OFFSET encrypt_RailFenceCipher,
-                        OFFSET encrypt_VigenereCipher,
-                        OFFSET encrypt_RC4Cipher,
-                        OFFSET encrypt_ChaCha20Cipher
+                            OFFSET encrypt_CaesarCipher,
+                            OFFSET encrypt_RailFenceCipher,
+                            OFFSET encrypt_VigenereCipher,
+                            OFFSET encrypt_RC4Cipher,
+                            OFFSET encrypt_ChaCha20Cipher
 
     decryptionCiphers DWORD OFFSET decrypt_XORCipher,
-                        OFFSET decrypt_CaesarCipher,
-                        OFFSET decrypt_RailFenceCipher,
-                        OFFSET decrypt_VigenereCipher,
-                        OFFSET decrypt_RC4Cipher,
-                        OFFSET decrypt_ChaCha20Cipher
+                            OFFSET decrypt_CaesarCipher,
+                            OFFSET decrypt_RailFenceCipher,
+                            OFFSET decrypt_VigenereCipher,
+                            OFFSET decrypt_RC4Cipher,
+                            OFFSET decrypt_ChaCha20Cipher
 
     ; using indivdual lines instead of a single, long string due to max line length limit in masm issue
     bannerLine1  BYTE "===================================================", 0Ah, 0Dh, 0
@@ -299,12 +299,36 @@ LARGE_SIZE  = 4096
     encrypt_XORCipher ENDP
 
 
+    ; decryption algo for the XOR cipher
     decrypt_XORCipher PROC
+
+        CALL encrypt_XORCipher              ; waow! (its since: XOR(XOR(someText, key), key) = someText)
         RET
+
+        ; initializeRegs:
+        ;     MOV esi, OFFSET dataBuffer      ; holds address of data chunk
+        ;     MOV ecx, bytesRead              ; loop counter
+        ;     XOR edi, edi                    ; effectively MOV edi, 0
+
+        ; getCipherKey:
+        ;     MOV al, keyBuffer[edi]          ; get current key byte
+        ;     CMP al, 0                       ; checks for null terminator of key string
+        ;     JNE applyCipher                 ; if al != 0, jump to applyCipher
+        ;     XOR edi, edi                    ; reset key index (wrap around)
+        ;     MOV al, keyBuffer[edi]          ; get value at start of key
+
+        ; applyCipher:   
+        ;     XOR [esi], al                   ; apply bitwise xor to undo encryption
+        ;     INC esi                         ; move to next data byte
+        ;     INC edi                         ; move to next key byte
+        ;     LOOP getCipherKey
+
+        ; RET
+
     decrypt_XORCipher ENDP
 
 
-    ; very easy
+    ; a very basic cipher which encrypts by shifting each char in the text forward (by ascii) by some key amount
     encrypt_CaesarCipher PROC
         initializeRegs:
                 MOV esi, OFFSET dataBuffer                            ; points to source data chunk
