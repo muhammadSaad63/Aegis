@@ -22,6 +22,7 @@ LARGE_SIZE  = 4096
     promptIn       BYTE "Enter source file path:                               ", 0
     promptOut      BYTE "Enter output file path:                               ", 0
     promptKey      BYTE "Enter encryption key/passphrase:                      ", 0
+    promptPlain    BYTE "Enter text to process:                                ", 0
     errOpenMsg     BYTE "Error: Failed to open or create file.                 ", 0
     successMsg     BYTE "Success!                                              ", 0
     emptyInputMsg  BYTE "[!] Error: Input path or text buffer cannot be empty. ", 0
@@ -39,8 +40,7 @@ LARGE_SIZE  = 4096
                             OFFSET decrypt_CaesarCipher,
                             OFFSET decrypt_RailFenceCipher,
                             OFFSET decrypt_VigenereCipher,
-                            OFFSET decrypt_RC4Cipher,
-                            OFFSET decrypt_ChaCha20Cipher
+                            OFFSET decrypt_RC4Cipher
 
     ; using indivdual lines instead of a single, long string due to max line length limit in masm issue
     bannerLine1  BYTE "===================================================", 0Ah, 0Dh, 0
@@ -181,8 +181,15 @@ LARGE_SIZE  = 4096
             JE  runFileMode
 
         runTextMode:
-            ; printing prompt
+            ; prompting for key in text mode
             MOV  edx, OFFSET promptKey
+            CALL WriteString
+            MOV  edx, OFFSET keyBuffer
+            MOV  ecx, SMALL_SIZE
+            CALL ReadString
+
+            ; printing prompt for text
+            MOV  edx, OFFSET promptPlain
             CALL WriteString
 
             ; reading plaintext
@@ -216,7 +223,10 @@ LARGE_SIZE  = 4096
             JC   engineClose             ; aborts if file open failed
 
             fileLoop:
-                ; reading data chunk from input file into dataBuffer
+                ; reading data chunk from input file into dataBuffer with explicit register setup
+                MOV  eax, inputHandle
+                MOV  edx, OFFSET dataBuffer
+                MOV  ecx, LARGE_SIZE
                 CALL ReadFromFile
                 JC   closeFiles
                 MOV  bytesRead, eax
@@ -710,8 +720,8 @@ LARGE_SIZE  = 4096
             CMP ecx, 256
             JL  ksaLoop
 
-            POPad
-            RET
+        POPad
+        RET
 
     rc4KSA ENDP
 
