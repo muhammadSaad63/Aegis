@@ -793,64 +793,74 @@ LARGE_SIZE  = 4096
     decrypt_ChaCha20Cipher ENDP
 
 
+    ; prints the program menu
     printMenu PROC
 
         CALL ClrScr
 
-        ; set text to Bright Cyan (0Bh) for the header banner
-            MOV eax, 0Bh                    
+        ; Header banner (Bright Cyan - 0Bh)
+            MOV  eax, 0Bh                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine1
+            MOV  EDX, OFFSET bannerLine1
             CALL WriteString
-            MOV EDX, OFFSET bannerLine2
+            MOV  EDX, OFFSET bannerLine2
             CALL WriteString
-            MOV EDX, OFFSET bannerLine3
+            MOV  EDX, OFFSET bannerLine3
             CALL WriteString
-            MOV EDX, OFFSET bannerLine4
+            MOV  EDX, OFFSET bannerLine4
             CALL WriteString
-            MOV EDX, OFFSET bannerLine5
+            MOV  EDX, OFFSET bannerLine5
             CALL WriteString
 
-        ; change text to Bright Yellow (0Eh) for the ciphers
-            MOV eax, 0Eh                    
+            MOV  eax, 25          ; Delay for animation effect
+            CALL Delay
+
+        ; Ciphers list (Bright Yellow - 0Eh)
+            MOV  eax, 0Eh                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine6
+            MOV  EDX, OFFSET bannerLine6
             CALL WriteString
-            MOV EDX, OFFSET bannerLine7
+            MOV  EDX, OFFSET bannerLine7
             CALL WriteString
-            MOV EDX, OFFSET bannerLine8
+            MOV  EDX, OFFSET bannerLine8
             CALL WriteString
 
-        ; change text to Darker Gray/Blue (08h) for the divider lines & toggles
-            MOV eax, 08h                    
+            MOV  eax, 25
+            CALL Delay
+
+        ; Dividers & toggles (Darker Gray/Blue - 08h)
+            MOV  eax, 08h                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine9
+            MOV  EDX, OFFSET bannerLine9
             CALL WriteString
-            MOV EDX, OFFSET bannerLine10
+            MOV  EDX, OFFSET bannerLine10
             CALL WriteString
-            MOV EDX, OFFSET bannerLine11
+            MOV  EDX, OFFSET bannerLine11
             CALL WriteString
-            MOV EDX, OFFSET bannerLine12
+            MOV  EDX, OFFSET bannerLine12
             CALL WriteString
 
-        ; change text to Bright Red (0Ch) for Exit and Prompt section
-            MOV eax, 0Ch                    
+            MOV  eax, 25
+            CALL Delay
+
+        ; Exit and prompt section (Bright Red - 0Ch)
+            MOV  eax, 0Ch                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine13
+            MOV  EDX, OFFSET bannerLine13
             CALL WriteString
-            MOV EDX, OFFSET bannerLine14
+            MOV  EDX, OFFSET bannerLine14
             CALL WriteString
-            MOV EDX, OFFSET bannerLine15
+            MOV  EDX, OFFSET bannerLine15
             CALL WriteString
-            MOV EDX, OFFSET bannerLine16
+            MOV  EDX, OFFSET bannerLine16
             CALL WriteString
 
         ; reset color back to default white-on-black (07h)
-            MOV eax, 07h                    
+            MOV  eax, 07h                    
             CALL SetTextColor
 
         RET
@@ -1026,6 +1036,7 @@ LARGE_SIZE  = 4096
             CALL printMenu
             CALL getInput
             CALL processInput
+            CALL pauseEngine
 
             JMP  program
 
