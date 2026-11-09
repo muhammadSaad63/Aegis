@@ -236,6 +236,8 @@ LARGE_SIZE  = 4096
             CALL WriteString
             CALL Crlf
 
+            CALL pauseEngine
+
             RET
 
         runFileMode:
@@ -280,6 +282,9 @@ LARGE_SIZE  = 4096
             CALL Crlf
             MOV  eax, 07h
             CALL SetTextColor
+
+            CALL pauseEngine                ; ie press enter to continue
+
             JMP  closeFiles
 
         validationError:
@@ -291,6 +296,8 @@ LARGE_SIZE  = 4096
             CALL Crlf
             MOV  eax, 07h
             CALL SetTextColor
+
+            CALL pauseEngine
             RET
 
         closeFiles:
@@ -838,6 +845,25 @@ LARGE_SIZE  = 4096
     decrypt_RC4Cipher ENDP
 
 
+    ; medium - hard
+    encrypt_ChaCha20Cipher PROC
+
+        ; idhar likho
+
+        RET
+
+    encrypt_ChaCha20Cipher ENDP
+
+
+    decrypt_ChaCha20Cipher PROC
+
+        ; idhar likho
+
+        RET
+
+    decrypt_ChaCha20Cipher ENDP
+
+
     ; prints the program menu
     printMenu PROC
 
@@ -1027,7 +1053,7 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine10 upon entering of M (DE <-> EN)    
     toggleModeString PROC
 
-        MOV esi, OFFSET bannerLine10 + 22   
+        MOV esi, OFFSET (bannerLine10 + 24)
 
         CMP BYTE PTR [esi], 'E'        ; if text in banner is currently encryption
         JE  updateToDecryption
@@ -1050,7 +1076,7 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine11 upon entering of I (FILE <-> TEXT)
     toggleInputString PROC
         
-        MOV esi, OFFSET (bannerLine11 + 22)          ; 22 being the relative position of start of encryption/decryption word in bannerLine10
+        MOV esi, OFFSET (bannerLine11 + 24)          ; 24 being the relative position of start of input mode word in bannerLine11
 
         CMP BYTE PTR [esi], 'F'                            ; if text is currently FILE
         JE  updateToText
@@ -1081,7 +1107,6 @@ LARGE_SIZE  = 4096
             CALL printMenu
             CALL getInput
             CALL processInput
-            CALL pauseEngine
 
             JMP  program
 
