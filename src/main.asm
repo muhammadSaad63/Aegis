@@ -33,8 +33,7 @@ LARGE_SIZE  = 4096
                             OFFSET encrypt_CaesarCipher,
                             OFFSET encrypt_RailFenceCipher,
                             OFFSET encrypt_VigenereCipher,
-                            OFFSET encrypt_RC4Cipher,
-                            OFFSET encrypt_ChaCha20Cipher
+                            OFFSET encrypt_RC4Cipher
 
     decryptionCiphers DWORD OFFSET decrypt_XORCipher,
                             OFFSET decrypt_CaesarCipher,
@@ -84,6 +83,33 @@ LARGE_SIZE  = 4096
         RET
 
     pauseEngine ENDP
+
+
+    ; Typewriter utility to print strings character by character
+    printTypewriter PROC USES esi eax edx
+
+        MOV esi, edx
+
+        typewriterLoop:
+            MOV  al, [esi]
+            CMP  al, 0
+            JE   typewriterDone
+
+            CALL WriteChar
+
+            PUSH eax
+            MOV  eax, 35
+            CALL Delay
+            POP  eax
+
+            INC  esi
+            JMP  typewriterLoop
+
+        typewriterDone:
+            RET
+
+    printTypewriter ENDP
+
 
     ; collects file paths and passphrase from the user
     promptUser PROC
@@ -824,7 +850,7 @@ LARGE_SIZE  = 4096
             MOV  EDX, OFFSET bannerLine1
             CALL WriteString
             MOV  EDX, OFFSET bannerLine2
-            CALL WriteString
+            CALL printTypewriter                ; animated printing for A E G I S only
             MOV  EDX, OFFSET bannerLine3
             CALL WriteString
             MOV  EDX, OFFSET bannerLine4
