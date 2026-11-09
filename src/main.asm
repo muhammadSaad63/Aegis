@@ -66,6 +66,9 @@ LARGE_SIZE  = 4096
     isModeEncryption  BYTE  1               ; 0: decryption, 1: encryption  | initially set for encryption
     activeCipherIndex DWORD 0
 
+    tempBuffer       BYTE LARGE_SIZE DUP(?)
+    rc4State         BYTE 256 DUP(?)
+
 .code
 
     ; collects file paths and passphrase from the user
@@ -226,52 +229,6 @@ LARGE_SIZE  = 4096
     executeEngine ENDP
 
 
-    ; ; continously reads & writes data from the files & performs algorithms on em
-    ; ProcessStream PROC
-
-    ;     ; reads up to 4,096 bytes from inputHandle and put them into dataBuffer
-    ;     readDataFromFile:
-    ;         MOV  eax, inputHandle
-    ;         MOV  edx, OFFSET dataBuffer
-    ;         MOV  ecx, LARGE_SIZE                       ; LARGE_SIZE = 4096 bytes
-    ;         CALL ReadFromFile
-    ;         JC   handleError
-
-    ;     checkEOF:
-    ;         MOV bytesRead, eax                            ; eax holds the exact number of bytes read
-    ;         CMP eax, 0                                    ; checks if we hit the End Of File
-    ;         JE  closeFiles
-
-    ;     ; run xor transformation on the loaded chunk
-    ;     ;CALL XORCipher
-
-    ;     ; writes transformed chunk to output file
-    ;     writeDataToFile:
-    ;         MOV  eax, outputHandle
-    ;         MOV  edx, OFFSET dataBuffer
-    ;         MOV  ecx, bytesRead
-    ;         CALL WriteToFile
-    ;         JC   handleError
-
-    ;         JMP  readDataFromFile
-
-    ;     closeFiles:
-    ;         MOV  eax, inputHandle
-    ;         CALL CloseFile
-    ;         MOV  eax, outputHandle
-    ;         CALL CloseFile
-
-    ;     processSuccess:
-    ;         MOV  edx, OFFSET successMsg
-    ;         CALL WriteString
-    ;         CALL Crlf
-
-    ;     handleError:
-    ;         RET
-
-    ; ProcessStream ENDP
-
-
     ; performs the very basic XOR cipher on the data chunk
     encrypt_XORCipher PROC
 
@@ -301,9 +258,6 @@ LARGE_SIZE  = 4096
 
     ; decryption algo for the XOR cipher
     decrypt_XORCipher PROC
-
-        ; CALL encrypt_XORCipher              ; waow! (its since: XOR(XOR(someText, key), key) = someText)
-        ; RET
 
         initializeRegs:
             MOV esi, OFFSET dataBuffer      ; holds address of data chunk
@@ -663,11 +617,137 @@ LARGE_SIZE  = 4096
     decrypt_VigenereCipher ENDP
 
 
+    ; RC4 KSA (Key-Scheduling Algorithm)
+    rc4KSA PROC
+        PUSHad
+        XOR ecx, ecx
+
+        initSBoxLoop:
+            MOV rc4State[ecx], cl
+            INC ecx
+            CMP ecx, 256
+            JL  initSBoxLoop
+
+            XOR ecx, ecx            
+            XOR ebx, ebx            
+            XOR edx, edx            
+            
+        ksaLoop:
+            MOV al, rc4State[ecx]   
+            
+            PUSH ecx
+            MOV esi, OFFSET keyBuffer
+            ADD esi, edx            
+            MOV ah, [esi]           
+            CMP ah, 0               
+            JNE keyValid
+            
+            XOR edx, edx
+            MOV esi, OFFSET keyBuffer
+            MOV ah, [esi]
+        keyValid:
+            POP ecx
+
+            ADD bl, al              
+            ADD bl, ah              
+
+            MOV al, rc4State[ecx]   
+            
+            PUSH ecx
+            MOVzx ecx, bl           
+            MOV ah, rc4State[ecx]   
+            POP ecx                 
+
+            MOV rc4State[ecx], ah   
+            
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV rc4State[ecx], al   
+            POP ecx
+
+            INC edx                 
+            INC ecx                 
+            CMP ecx, 256
+            JL  ksaLoop
+
+            POPad
+            RET
+
+    rc4KSA ENDP
+
+
+    ; RC4 PRGA & Stream Transformation
+    rc4Transform PROC
+        PUSHad
+
+        CALL rc4KSA
+
+        XOR ecx, ecx            
+        XOR esi, esi            
+        MOV bl, 0               
+        MOV bh, 0               
+
+        prgaLoop:
+            CMP ecx, bytesRead      
+            JGE prgaDone
+
+            INC bl                  
+            
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV al, rc4State[ecx]   
+            POP ecx
+            
+            ADD bh, al              
+
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV al, rc4State[ecx]   
+            
+            PUSH ebx
+            MOVzx ecx, bh           
+            MOV ah, rc4State[ecx]   
+            POP ebx
+
+            MOV rc4State[ecx], al   
+            
+            PUSH ebx
+            MOVzx ecx, bl           
+            MOV rc4State[ecx], ah   
+            POP ebx
+            
+            POP ecx
+
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV al, rc4State[ecx]   
+            MOVzx ecx, bh
+            MOV ah, rc4State[ecx]   
+            POP ecx
+
+            ADD al, ah              
+            MOVzx edx, al           
+            MOV al, rc4State[edx]   
+
+            MOV esi, OFFSET dataBuffer
+            ADD esi, ecx            
+            XOR [esi], al           
+
+            INC ecx                 
+            JMP prgaLoop
+
+        prgaDone:
+            POPad
+            RET
+
+    rc4Transform ENDP
+
+
     ; medium
     encrypt_RC4Cipher PROC
 
-        ; idhar likho
-
+        CALL rc4Transform
+        
         RET
 
     encrypt_RC4Cipher ENDP
@@ -675,7 +755,7 @@ LARGE_SIZE  = 4096
 
     decrypt_RC4Cipher PROC
 
-        ; idhar likho
+        CALL rc4Transform
 
         RET
 
