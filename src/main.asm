@@ -19,11 +19,13 @@ LARGE_SIZE  = 4096
     outputFilePath BYTE MEDIUM_SIZE DUP(?)
 
     ; prompt strings
-    promptIn       BYTE "Enter source file path:                ", 0
-    promptOut      BYTE "Enter output file path:                ", 0
-    promptKey      BYTE "Enter encryption key/passphrase:       ", 0
-    errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
-    successMsg     BYTE "Success!", 0
+    promptIn       BYTE "Enter source file path:                               ", 0
+    promptOut      BYTE "Enter output file path:                               ", 0
+    promptKey      BYTE "Enter encryption key/passphrase:                      ", 0
+    errOpenMsg     BYTE "Error: Failed to open or create file.                 ", 0
+    successMsg     BYTE "Success!                                              ", 0
+    emptyInputMsg  BYTE "[!] Error: Input path or text buffer cannot be empty. ", 0
+    pressEnterMsg  BYTE "Press any key to return to the menu...                ", 0
 
     ; arr of procedure pointers
     encryptionCiphers DWORD OFFSET encrypt_XORCipher,
@@ -170,7 +172,7 @@ LARGE_SIZE  = 4096
 
 
     ; responsible for managing and carrying the ciphers-stuff
-    eexecuteEngine PROC
+    executeEngine PROC
 
         MOV activeCipherIndex, eax   ; Save chosen cipher index globally
 
