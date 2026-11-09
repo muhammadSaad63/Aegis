@@ -53,7 +53,7 @@ LARGE_SIZE  = 4096
     bannerLine8  BYTE "  [3] Rail Fence                                   ", 0Ah, 0Dh, 0
     bannerLine9  BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
     bannerLine10 BYTE "  [M] Toggle Mode:   [ ENCRYPTION ]                ", 0Ah, 0Dh, 0
-    bannerLine11 BYTE "  [I] Toggle Input:  [ FILE ]                      ", 0Ah, 0Dh, 0
+    bannerLine11 BYTE "  [I] Toggle Input:  [ TEXT ]                      ", 0Ah, 0Dh, 0
     bannerLine12 BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
     bannerLine13 BYTE "  [X] Exit Aegis                                   ", 0Ah, 0Dh, 0 
     bannerLine14 BYTE "                                                   ", 0Ah, 0Dh, 0 
@@ -81,7 +81,7 @@ LARGE_SIZE  = 4096
         MOV  edx, OFFSET pressEnterMsg
         CALL WriteString
         CALL ReadChar
-        
+
         CALL Crlf
 
         RET
