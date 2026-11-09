@@ -774,25 +774,6 @@ LARGE_SIZE  = 4096
     decrypt_RC4Cipher ENDP
 
 
-    ; medium - hard
-    encrypt_ChaCha20Cipher PROC
-
-        ; idhar likho
-
-        RET
-
-    encrypt_ChaCha20Cipher ENDP
-
-
-    decrypt_ChaCha20Cipher PROC
-
-        ; idhar likho
-
-        RET
-
-    decrypt_ChaCha20Cipher ENDP
-
-
     ; prints the program menu
     printMenu PROC
 
