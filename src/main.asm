@@ -19,26 +19,27 @@ LARGE_SIZE  = 4096
     outputFilePath BYTE MEDIUM_SIZE DUP(?)
 
     ; prompt strings
-    promptIn       BYTE "Enter source file path:                ", 0
-    promptOut      BYTE "Enter output file path:                ", 0
-    promptKey      BYTE "Enter encryption key/passphrase:       ", 0
-    errOpenMsg     BYTE "Error: Failed to open or create file.  ", 0
-    successMsg     BYTE "Success!", 0
+    promptIn       BYTE "Enter source file path:                               ", 0
+    promptOut      BYTE "Enter output file path:                               ", 0
+    promptKey      BYTE "Enter encryption key/passphrase:                      ", 0
+    promptPlain    BYTE "Enter text to process:                                ", 0
+    errOpenMsg     BYTE "Error: Failed to open or create file.                 ", 0
+    successMsg     BYTE "Success!                                              ", 0
+    emptyInputMsg  BYTE "[!] Error: Input path or text buffer cannot be empty. ", 0
+    pressEnterMsg  BYTE "Press any key to return to the menu...                ", 0
 
     ; arr of procedure pointers
     encryptionCiphers DWORD OFFSET encrypt_XORCipher,
                             OFFSET encrypt_CaesarCipher,
                             OFFSET encrypt_RailFenceCipher,
                             OFFSET encrypt_VigenereCipher,
-                            OFFSET encrypt_RC4Cipher,
-                            OFFSET encrypt_ChaCha20Cipher
+                            OFFSET encrypt_RC4Cipher
 
     decryptionCiphers DWORD OFFSET decrypt_XORCipher,
                             OFFSET decrypt_CaesarCipher,
                             OFFSET decrypt_RailFenceCipher,
                             OFFSET decrypt_VigenereCipher,
-                            OFFSET decrypt_RC4Cipher,
-                            OFFSET decrypt_ChaCha20Cipher
+                            OFFSET decrypt_RC4Cipher
 
     ; using indivdual lines instead of a single, long string due to max line length limit in masm issue
     bannerLine1  BYTE "===================================================", 0Ah, 0Dh, 0
@@ -66,7 +67,49 @@ LARGE_SIZE  = 4096
     isModeEncryption  BYTE  1               ; 0: decryption, 1: encryption  | initially set for encryption
     activeCipherIndex DWORD 0
 
+    tempBuffer       BYTE LARGE_SIZE DUP(?)
+    rc4State         BYTE 256 DUP(?)
+
 .code
+
+    ; Pause utility to let user review outputs before redrawing menu
+    pauseEngine PROC USES eax, edx
+
+        MOV  edx, OFFSET pressEnterMsg
+        CALL WriteString
+        CALL ReadChar
+        CALL Crlf
+
+        RET
+
+    pauseEngine ENDP
+
+
+    ; Typewriter utility to print strings character by character
+    printTypewriter PROC USES esi eax edx
+
+        MOV esi, edx
+
+        typewriterLoop:
+            MOV  al, [esi]
+            CMP  al, 0
+            JE   typewriterDone
+
+            CALL WriteChar
+
+            PUSH eax
+            MOV  eax, 35
+            CALL Delay
+            POP  eax
+
+            INC  esi
+            JMP  typewriterLoop
+
+        typewriterDone:
+            RET
+
+    printTypewriter ENDP
+
 
     ; collects file paths and passphrase from the user
     promptUser PROC
@@ -164,8 +207,15 @@ LARGE_SIZE  = 4096
             JE  runFileMode
 
         runTextMode:
-            ; printing prompt
+            ; prompting for key in text mode
             MOV  edx, OFFSET promptKey
+            CALL WriteString
+            MOV  edx, OFFSET keyBuffer
+            MOV  ecx, SMALL_SIZE
+            CALL ReadString
+
+            ; printing prompt for text
+            MOV  edx, OFFSET promptPlain
             CALL WriteString
 
             ; reading plaintext
@@ -173,6 +223,10 @@ LARGE_SIZE  = 4096
             MOV  ecx, LARGE_SIZE
             CALL ReadString                          ; grabs text string from user
             MOV  bytesRead, eax                      ; saves string length
+
+            ; Validate empty text input
+            CMP  bytesRead, 0
+            JE   validationError
 
             ; run active cipher in place
             CALL dispatchCipher
@@ -186,11 +240,19 @@ LARGE_SIZE  = 4096
 
         runFileMode:
             CALL promptUser              ; get source and destination paths + key
+            
+            ; Validate empty file path
+            CMP  inputFilePath, 0
+            JE   validationError
+
             CALL openFiles               ; opens handles
             JC   engineClose             ; aborts if file open failed
 
             fileLoop:
-                ; reading data chunk from input file into dataBuffer
+                ; reading data chunk from input file into dataBuffer with explicit register setup
+                MOV  eax, inputHandle
+                MOV  edx, OFFSET dataBuffer
+                MOV  ecx, LARGE_SIZE
                 CALL ReadFromFile
                 JC   closeFiles
                 MOV  bytesRead, eax
@@ -210,9 +272,26 @@ LARGE_SIZE  = 4096
                 JMP  fileLoop
 
         engineSuccess:
-            MOV edx, OFFSET successMsg
+            ; Success message in Bright Green (0Ah)
+            MOV  eax, 0Ah
+            CALL SetTextColor
+            MOV  edx, OFFSET successMsg
             CALL WriteString
             CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
+            JMP  closeFiles
+
+        validationError:
+            ; Error message in Bright Red (0Ch)
+            MOV  eax, 0Ch
+            CALL SetTextColor
+            MOV  edx, OFFSET emptyInputMsg
+            CALL WriteString
+            CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
+            RET
 
         closeFiles:
             MOV  eax, inputHandle
@@ -224,52 +303,6 @@ LARGE_SIZE  = 4096
             RET
 
     executeEngine ENDP
-
-
-    ; ; continously reads & writes data from the files & performs algorithms on em
-    ; ProcessStream PROC
-
-    ;     ; reads up to 4,096 bytes from inputHandle and put them into dataBuffer
-    ;     readDataFromFile:
-    ;         MOV  eax, inputHandle
-    ;         MOV  edx, OFFSET dataBuffer
-    ;         MOV  ecx, LARGE_SIZE                       ; LARGE_SIZE = 4096 bytes
-    ;         CALL ReadFromFile
-    ;         JC   handleError
-
-    ;     checkEOF:
-    ;         MOV bytesRead, eax                            ; eax holds the exact number of bytes read
-    ;         CMP eax, 0                                    ; checks if we hit the End Of File
-    ;         JE  closeFiles
-
-    ;     ; run xor transformation on the loaded chunk
-    ;     ;CALL XORCipher
-
-    ;     ; writes transformed chunk to output file
-    ;     writeDataToFile:
-    ;         MOV  eax, outputHandle
-    ;         MOV  edx, OFFSET dataBuffer
-    ;         MOV  ecx, bytesRead
-    ;         CALL WriteToFile
-    ;         JC   handleError
-
-    ;         JMP  readDataFromFile
-
-    ;     closeFiles:
-    ;         MOV  eax, inputHandle
-    ;         CALL CloseFile
-    ;         MOV  eax, outputHandle
-    ;         CALL CloseFile
-
-    ;     processSuccess:
-    ;         MOV  edx, OFFSET successMsg
-    ;         CALL WriteString
-    ;         CALL Crlf
-
-    ;     handleError:
-    ;         RET
-
-    ; ProcessStream ENDP
 
 
     ; performs the very basic XOR cipher on the data chunk
@@ -301,9 +334,6 @@ LARGE_SIZE  = 4096
 
     ; decryption algo for the XOR cipher
     decrypt_XORCipher PROC
-
-        ; CALL encrypt_XORCipher              ; waow! (its since: XOR(XOR(someText, key), key) = someText)
-        ; RET
 
         initializeRegs:
             MOV esi, OFFSET dataBuffer      ; holds address of data chunk
@@ -433,7 +463,45 @@ LARGE_SIZE  = 4096
     ; easy
     encrypt_RailFenceCipher PROC
 
-        ; idhar likho
+        MOV esi, OFFSET dataBuffer
+        MOV edi, OFFSET tempBuffer
+        MOV ebx, bytesRead
+        XOR eax, eax
+
+        rfEvenLoop:
+            CMP eax, ebx
+            JAE rfOddStart
+
+            MOV dl, [esi + eax]
+            MOV [edi], dl
+            INC edi
+            ADD eax, 2
+            JMP rfEvenLoop
+
+        rfOddStart:
+            MOV eax, 1
+
+        rfOddLoop:
+            CMP eax, ebx
+            JAE rfCopyBack
+
+            MOV dl, [esi + eax]
+            MOV [edi], dl
+            INC edi
+            ADD eax, 2
+            JMP rfOddLoop
+
+        rfCopyBack:
+            MOV esi, OFFSET tempBuffer
+            MOV edi, OFFSET dataBuffer
+            MOV ecx, bytesRead
+
+        rfCopyLoop:
+            MOV al, [esi]
+            MOV [edi], al
+            INC esi
+            INC edi
+            LOOP rfCopyLoop
 
         RET
 
@@ -442,7 +510,46 @@ LARGE_SIZE  = 4096
 
     decrypt_RailFenceCipher PROC
 
-        ; idhar likho
+        MOV esi, OFFSET dataBuffer
+        MOV eax, bytesRead
+        INC eax
+        SHR eax, 1
+
+        MOV edi, OFFSET dataBuffer
+        ADD edi, eax
+
+        MOV edx, OFFSET tempBuffer
+        MOV ecx, bytesRead
+        XOR ebx, ebx
+
+        rfDecLoop:
+            CMP ebx, 0
+            JNE rfSecondRail
+
+            MOV al, [esi]
+            INC esi
+            JMP rfStoreChar
+
+        rfSecondRail:
+            MOV al, [edi]
+            INC edi
+
+        rfStoreChar:
+            MOV [edx], al
+            INC edx
+            XOR ebx, 1
+            LOOP rfDecLoop
+
+        MOV esi, OFFSET tempBuffer
+        MOV edi, OFFSET dataBuffer
+        MOV ecx, bytesRead
+
+        rfDecCopy:
+            MOV al, [esi]
+            MOV [edi], al
+            INC esi
+            INC edi
+            LOOP rfDecCopy
 
         RET
 
@@ -452,7 +559,66 @@ LARGE_SIZE  = 4096
     ; easy - medium
     encrypt_VigenereCipher PROC
 
-        ; idhar likho
+        MOV esi, OFFSET dataBuffer
+        MOV edi, 0
+        MOV ecx, bytesRead
+
+        vigEncLoop:
+            MOV al, [esi]
+
+            CMP al, 'A'
+            JB vigEncNext
+            CMP al, 'Z'
+            JBE vigEncUpper
+
+            CMP al, 'a'
+            JB vigEncNext
+            CMP al, 'z'
+            JA vigEncNext
+
+            MOV dl, keyBuffer[edi]
+            CMP dl, 'a'
+            JB vigEncLowerKey
+            SUB dl, 'a'
+            JMP vigEncLower
+
+        vigEncLowerKey:
+            SUB dl, 'A'
+
+        vigEncLower:
+            ADD al, dl
+            CMP al, 'z'
+            JBE vigEncStore
+            SUB al, 26
+            JMP vigEncStore
+
+        vigEncUpper:
+            MOV dl, keyBuffer[edi]
+            CMP dl, 'a'
+            JB vigEncUpperKey
+            SUB dl, 'a'
+            JMP vigEncUpperApply
+
+        vigEncUpperKey:
+            SUB dl, 'A'
+
+        vigEncUpperApply:
+            ADD al, dl
+            CMP al, 'Z'
+            JBE vigEncStore
+            SUB al, 26
+
+        vigEncStore:
+            MOV [esi], al
+            INC edi
+
+            CMP keyBuffer[edi], 0
+            JNE vigEncNext
+            XOR edi, edi
+
+        vigEncNext:
+            INC esi
+            LOOP vigEncLoop
 
         RET
 
@@ -461,18 +627,203 @@ LARGE_SIZE  = 4096
 
     decrypt_VigenereCipher PROC
 
-        ; idhar likho
+        MOV esi, OFFSET dataBuffer
+        MOV edi, 0
+        MOV ecx, bytesRead
+
+        vigDecLoop:
+            MOV al, [esi]
+
+            CMP al, 'A'
+            JB vigDecNext
+            CMP al, 'Z'
+            JBE vigDecUpper
+
+            CMP al, 'a'
+            JB vigDecNext
+            CMP al, 'z'
+            JA vigDecNext
+
+            MOV dl, keyBuffer[edi]
+            CMP dl, 'a'
+            JB vigDecLowerKey
+            SUB dl, 'a'
+            JMP vigDecLower
+
+        vigDecLowerKey:
+            SUB dl, 'A'
+
+        vigDecLower:
+            SUB al, dl
+            CMP al, 'a'
+            JAE vigDecStore
+            ADD al, 26
+            JMP vigDecStore
+
+        vigDecUpper:
+            MOV dl, keyBuffer[edi]
+            CMP dl, 'a'
+            JB vigDecUpperKey
+            SUB dl, 'a'
+            JMP vigDecUpperApply
+
+        vigDecUpperKey:
+            SUB dl, 'A'
+
+        vigDecUpperApply:
+            SUB al, dl
+            CMP al, 'A'
+            JAE vigDecStore
+            ADD al, 26
+
+        vigDecStore:
+            MOV [esi], al
+            INC edi
+
+            CMP keyBuffer[edi], 0
+            JNE vigDecNext
+            XOR edi, edi
+
+        vigDecNext:
+            INC esi
+            LOOP vigDecLoop
 
         RET
 
     decrypt_VigenereCipher ENDP
 
 
+    ; RC4 KSA (Key-Scheduling Algorithm)
+    rc4KSA PROC
+        PUSHad
+        XOR ecx, ecx
+
+        initSBoxLoop:
+            MOV rc4State[ecx], cl
+            INC ecx
+            CMP ecx, 256
+            JL  initSBoxLoop
+
+            XOR ecx, ecx            
+            XOR ebx, ebx            
+            XOR edx, edx            
+            
+        ksaLoop:
+            MOV al, rc4State[ecx]   
+            
+            PUSH ecx
+            MOV esi, OFFSET keyBuffer
+            ADD esi, edx            
+            MOV ah, [esi]           
+            CMP ah, 0               
+            JNE keyValid
+            
+            XOR edx, edx
+            MOV esi, OFFSET keyBuffer
+            MOV ah, [esi]
+        keyValid:
+            POP ecx
+
+            ADD bl, al              
+            ADD bl, ah              
+
+            MOV al, rc4State[ecx]   
+            
+            PUSH ecx
+            MOVzx ecx, bl           
+            MOV ah, rc4State[ecx]   
+            POP ecx                 
+
+            MOV rc4State[ecx], ah   
+            
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV rc4State[ecx], al   
+            POP ecx
+
+            INC edx                 
+            INC ecx                 
+            CMP ecx, 256
+            JL  ksaLoop
+
+        POPad
+        RET
+
+    rc4KSA ENDP
+
+
+    ; RC4 PRGA & Stream Transformation
+    rc4Transform PROC
+        PUSHad
+
+        CALL rc4KSA
+
+        XOR ecx, ecx            
+        XOR esi, esi            
+        MOV bl, 0               
+        MOV bh, 0               
+
+        prgaLoop:
+            CMP ecx, bytesRead      
+            JGE prgaDone
+
+            INC bl                  
+            
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV al, rc4State[ecx]   
+            POP ecx
+            
+            ADD bh, al              
+
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV al, rc4State[ecx]   
+            
+            PUSH ebx
+            MOVzx ecx, bh           
+            MOV ah, rc4State[ecx]   
+            POP ebx
+
+            MOV rc4State[ecx], al   
+            
+            PUSH ebx
+            MOVzx ecx, bl           
+            MOV rc4State[ecx], ah   
+            POP ebx
+            
+            POP ecx
+
+            PUSH ecx
+            MOVzx ecx, bl
+            MOV al, rc4State[ecx]   
+            MOVzx ecx, bh
+            MOV ah, rc4State[ecx]   
+            POP ecx
+
+            ADD al, ah              
+            MOVzx edx, al           
+            MOV al, rc4State[edx]   
+
+            MOV esi, OFFSET dataBuffer
+            ADD esi, ecx            
+            XOR [esi], al           
+
+            INC ecx                 
+            JMP prgaLoop
+
+        prgaDone:
+            POPad
+            RET
+
+    rc4Transform ENDP
+
+
     ; medium
     encrypt_RC4Cipher PROC
 
-        ; idhar likho
-
+        CALL rc4Transform
+        
         RET
 
     encrypt_RC4Cipher ENDP
@@ -480,90 +831,81 @@ LARGE_SIZE  = 4096
 
     decrypt_RC4Cipher PROC
 
-        ; idhar likho
+        CALL rc4Transform
 
         RET
 
     decrypt_RC4Cipher ENDP
 
 
-    ; medium - hard
-    encrypt_ChaCha20Cipher PROC
-
-        ; idhar likho
-
-        RET
-
-    encrypt_ChaCha20Cipher ENDP
-
-
-    decrypt_ChaCha20Cipher PROC
-
-        ; idhar likho
-
-        RET
-
-    decrypt_ChaCha20Cipher ENDP
-
-
+    ; prints the program menu
     printMenu PROC
 
         CALL ClrScr
 
-        ; set text to Bright Cyan (0Bh) for the header banner
-            MOV eax, 0Bh                    
+        ; Header banner (Bright Cyan - 0Bh)
+            MOV  eax, 0Bh                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine1
+            MOV  EDX, OFFSET bannerLine1
             CALL WriteString
-            MOV EDX, OFFSET bannerLine2
+            MOV  EDX, OFFSET bannerLine2
+            CALL printTypewriter                ; animated printing for A E G I S only
+            MOV  EDX, OFFSET bannerLine3
             CALL WriteString
-            MOV EDX, OFFSET bannerLine3
+            MOV  EDX, OFFSET bannerLine4
             CALL WriteString
-            MOV EDX, OFFSET bannerLine4
-            CALL WriteString
-            MOV EDX, OFFSET bannerLine5
+            MOV  EDX, OFFSET bannerLine5
             CALL WriteString
 
-        ; change text to Bright Yellow (0Eh) for the ciphers
-            MOV eax, 0Eh                    
+            MOV  eax, 25          ; Delay for animation effect
+            CALL Delay
+
+        ; Ciphers list (Bright Yellow - 0Eh)
+            MOV  eax, 0Eh                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine6
+            MOV  EDX, OFFSET bannerLine6
             CALL WriteString
-            MOV EDX, OFFSET bannerLine7
+            MOV  EDX, OFFSET bannerLine7
             CALL WriteString
-            MOV EDX, OFFSET bannerLine8
+            MOV  EDX, OFFSET bannerLine8
             CALL WriteString
 
-        ; change text to Darker Gray/Blue (08h) for the divider lines & toggles
-            MOV eax, 08h                    
+            MOV  eax, 25
+            CALL Delay
+
+        ; Dividers & toggles (Darker Gray/Blue - 08h)
+            MOV  eax, 08h                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine9
+            MOV  EDX, OFFSET bannerLine9
             CALL WriteString
-            MOV EDX, OFFSET bannerLine10
+            MOV  EDX, OFFSET bannerLine10
             CALL WriteString
-            MOV EDX, OFFSET bannerLine11
+            MOV  EDX, OFFSET bannerLine11
             CALL WriteString
-            MOV EDX, OFFSET bannerLine12
+            MOV  EDX, OFFSET bannerLine12
             CALL WriteString
 
-        ; change text to Bright Red (0Ch) for Exit and Prompt section
-            MOV eax, 0Ch                    
+            MOV  eax, 25
+            CALL Delay
+
+        ; Exit and prompt section (Bright Red - 0Ch)
+            MOV  eax, 0Ch                    
             CALL SetTextColor
 
-            MOV EDX, OFFSET bannerLine13
+            MOV  EDX, OFFSET bannerLine13
             CALL WriteString
-            MOV EDX, OFFSET bannerLine14
+            MOV  EDX, OFFSET bannerLine14
             CALL WriteString
-            MOV EDX, OFFSET bannerLine15
+            MOV  EDX, OFFSET bannerLine15
             CALL WriteString
-            MOV EDX, OFFSET bannerLine16
+            MOV  EDX, OFFSET bannerLine16
             CALL WriteString
 
         ; reset color back to default white-on-black (07h)
-            MOV eax, 07h                    
+            MOV  eax, 07h                    
             CALL SetTextColor
 
         RET
@@ -739,6 +1081,7 @@ LARGE_SIZE  = 4096
             CALL printMenu
             CALL getInput
             CALL processInput
+            CALL pauseEngine
 
             JMP  program
 
