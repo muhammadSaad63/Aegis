@@ -66,6 +66,7 @@ LARGE_SIZE  = 4096
     isInputFile       BYTE  0               ; 0: text, 1: file              | initially set for text input
     isModeEncryption  BYTE  1               ; 0: decryption, 1: encryption  | initially set for encryption
     activeCipherIndex DWORD 0
+    skipTypewriter    BYTE  0               ; 0: use typewriter, 1: skip typewriter on toggle
 
     tempBuffer       BYTE LARGE_SIZE DUP(?)
     rc4State         BYTE 256 DUP(?)
@@ -875,8 +876,20 @@ LARGE_SIZE  = 4096
 
             MOV  EDX, OFFSET bannerLine1
             CALL WriteString
+
+            CMP  skipTypewriter, 1
+            JE   printInstantBanner
             MOV  EDX, OFFSET bannerLine2
             CALL printTypewriter                ; animated printing for A E G I S only
+            JMP  continueBanner
+
+        printInstantBanner:
+            MOV  EDX, OFFSET bannerLine2
+            CALL WriteString
+            MOV  skipTypewriter, 0             ; reset flag
+
+        continueBanner:
+
             MOV  EDX, OFFSET bannerLine3
             CALL WriteString
             MOV  EDX, OFFSET bannerLine4
@@ -1032,6 +1045,7 @@ LARGE_SIZE  = 4096
             MOV al, isModeEncryption
             XOR al, 1                       ; toggling the value of the status flag
             MOV isModeEncryption, al
+            MOV skipTypewriter, 1           ; skip typewriter on toggle redraw
             
             CALL toggleModeString
             RET
@@ -1040,6 +1054,7 @@ LARGE_SIZE  = 4096
             MOV al, isInputFile
             XOR al, 1                       ; toggling the value of the status flag
             MOV isInputFile, al
+            MOV skipTypewriter, 1           ; skip typewriter on toggle redraw
 
             CALL toggleInputString
             RET
@@ -1053,7 +1068,7 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine10 upon entering of M (DE <-> EN)    
     toggleModeString PROC
 
-        MOV esi, OFFSET (bannerLine10 + 23)
+        MOV esi, OFFSET bannerLine10 + 23   
 
         CMP BYTE PTR [esi], 'E'        ; if text in banner is currently encryption
         JE  updateToDecryption
