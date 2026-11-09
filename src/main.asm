@@ -76,9 +76,12 @@ LARGE_SIZE  = 4096
     ; Pause utility to let user review outputs before redrawing menu
     pauseEngine PROC USES eax edx
 
+        CALL Crlf
+
         MOV  edx, OFFSET pressEnterMsg
         CALL WriteString
         CALL ReadChar
+        
         CALL Crlf
 
         RET
