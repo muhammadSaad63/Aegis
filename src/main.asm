@@ -19,14 +19,15 @@ LARGE_SIZE  = 4096
     outputFilePath BYTE MEDIUM_SIZE DUP(?)
 
     ; prompt strings
-    promptIn       BYTE "Enter source file path:                               ", 0
-    promptOut      BYTE "Enter output file path:                               ", 0
-    promptKey      BYTE "Enter encryption key/passphrase:                      ", 0
-    promptPlain    BYTE "Enter text to process:                                ", 0
-    errOpenMsg     BYTE "Error: Failed to open or create file.                 ", 0
-    successMsg     BYTE "Success!                                              ", 0
-    emptyInputMsg  BYTE "[!] Error: Input path or text buffer cannot be empty. ", 0
-    pressEnterMsg  BYTE "Press any key to return to the menu...                ", 0
+    promptIn        BYTE "Enter source file path:                                      ", 0
+    promptOut       BYTE "Enter output file path:                                      ", 0
+    promptKey       BYTE "Enter encryption key/passphrase:                             ", 0
+    promptPlain     BYTE "Enter text to process:                                       ", 0
+    errOpenMsg      BYTE "Error: Failed to open or create file.                        ", 0
+    successMsg      BYTE "Success!                                                     ", 0
+    emptyInputMsg   BYTE "[!] Error: Input path or text buffer cannot be empty.        ", 0
+    pressEnterMsg   BYTE "Press any key to return to the menu...                       ", 0
+    invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}. ", 0
 
     ; arr of procedure pointers
     encryptionCiphers DWORD OFFSET encrypt_XORCipher,
@@ -48,7 +49,7 @@ LARGE_SIZE  = 4096
     bannerLine4  BYTE "===================================================", 0Ah, 0Dh, 0
     bannerLine5  BYTE "                                                   ", 0Ah, 0Dh, 0
     bannerLine6  BYTE "  [1] XOR Cipher            [4] Vigenere Cipher    ", 0Ah, 0Dh, 0
-    bannerLine7  BYTE "  [2] Caesar Cipher         [5] RC4/ChaCha20 ARX   ", 0Ah, 0Dh, 0
+    bannerLine7  BYTE "  [2] Caesar Cipher         [5] RC4 ARX            ", 0Ah, 0Dh, 0
     bannerLine8  BYTE "  [3] Rail Fence                                   ", 0Ah, 0Dh, 0
     bannerLine9  BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
     bannerLine10 BYTE "  [M] Toggle Mode:   [ ENCRYPTION ]                ", 0Ah, 0Dh, 0
@@ -60,7 +61,6 @@ LARGE_SIZE  = 4096
     bannerLine16 BYTE "                                                   ", 0Ah, 0Dh, 0
     bannerLine17 BYTE "Select an option (1 - 5 / M / I / X): ", 0
 
-    invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}.", 0
 
     ; control flags
     isInputFile       BYTE  0               ; 0: text, 1: file              | initially set for text input
@@ -73,7 +73,7 @@ LARGE_SIZE  = 4096
 .code
 
     ; Pause utility to let user review outputs before redrawing menu
-    pauseEngine PROC USES eax, edx
+    pauseEngine PROC USES eax edx
 
         MOV  edx, OFFSET pressEnterMsg
         CALL WriteString
@@ -1053,7 +1053,7 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine10 upon entering of M (DE <-> EN)    
     toggleModeString PROC
 
-        MOV esi, OFFSET (bannerLine10 + 24)
+        MOV esi, OFFSET (bannerLine10 + 23)
 
         CMP BYTE PTR [esi], 'E'        ; if text in banner is currently encryption
         JE  updateToDecryption
@@ -1076,7 +1076,7 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine11 upon entering of I (FILE <-> TEXT)
     toggleInputString PROC
         
-        MOV esi, OFFSET (bannerLine11 + 24)          ; 24 being the relative position of start of input mode word in bannerLine11
+        MOV esi, OFFSET (bannerLine11 + 23)          ; 23 being the relative position of start of input mode word in bannerLine11
 
         CMP BYTE PTR [esi], 'F'                            ; if text is currently FILE
         JE  updateToText
