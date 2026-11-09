@@ -170,7 +170,7 @@ LARGE_SIZE  = 4096
 
 
     ; responsible for managing and carrying the ciphers-stuff
-    executeEngine PROC
+    eexecuteEngine PROC
 
         MOV activeCipherIndex, eax   ; Save chosen cipher index globally
 
@@ -189,6 +189,10 @@ LARGE_SIZE  = 4096
             CALL ReadString                          ; grabs text string from user
             MOV  bytesRead, eax                      ; saves string length
 
+            ; Validate empty text input
+            CMP  bytesRead, 0
+            JE   validationError
+
             ; run active cipher in place
             CALL dispatchCipher
 
@@ -201,6 +205,11 @@ LARGE_SIZE  = 4096
 
         runFileMode:
             CALL promptUser              ; get source and destination paths + key
+            
+            ; Validate empty file path
+            CMP  inputFilePath, 0
+            JE   validationError
+
             CALL openFiles               ; opens handles
             JC   engineClose             ; aborts if file open failed
 
@@ -225,9 +234,26 @@ LARGE_SIZE  = 4096
                 JMP  fileLoop
 
         engineSuccess:
-            MOV edx, OFFSET successMsg
+            ; Success message in Bright Green (0Ah)
+            MOV  eax, 0Ah
+            CALL SetTextColor
+            MOV  edx, OFFSET successMsg
             CALL WriteString
             CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
+            JMP  closeFiles
+
+        validationError:
+            ; Error message in Bright Red (0Ch)
+            MOV  eax, 0Ch
+            CALL SetTextColor
+            MOV  edx, OFFSET emptyInputMsg
+            CALL WriteString
+            CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
+            RET
 
         closeFiles:
             MOV  eax, inputHandle
