@@ -71,6 +71,18 @@ LARGE_SIZE  = 4096
 
 .code
 
+    ; Pause utility to let user review outputs before redrawing menu
+    pauseEngine PROC USES eax, edx
+
+        MOV  edx, OFFSET pressEnterMsg
+        CALL WriteString
+        CALL ReadChar
+        CALL Crlf
+
+        RET
+
+    pauseEngine ENDP
+
     ; collects file paths and passphrase from the user
     promptUser PROC
         ; prompting for inputFilePath
