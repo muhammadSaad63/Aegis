@@ -32,8 +32,8 @@
 
 ## 4. Missing Cryptographic Implementations (Core Roadmap)
 
-    [ ] Rail Fence Cipher (Option 3): Implement zig-zag index stride mathematics for both encrypt_RailFenceCipher and decrypt_RailFenceCipher, handling full-buffer transposition.
+    [Y] Rail Fence Cipher (Option 3): Implement zig-zag index stride mathematics for both encrypt_RailFenceCipher and decrypt_RailFenceCipher, handling full-buffer transposition.
 
-    [ ] Vigenère Cipher (Option 4): Implement polyalphabetic shifting modulo 26 using keyBuffer, ensuring non-alphabetic characters are skipped correctly and key indices advance appropriately.
+    [Y] Vigenère Cipher (Option 4): Implement polyalphabetic shifting modulo 26 using keyBuffer, ensuring non-alphabetic characters are skipped correctly and key indices advance appropriately.
 
     [ ] RC4 & ChaCha20 ARX (Option 5): Implement the stream cipher state initialization, key-scheduling algorithm (KSA), and pseudo-random generation algorithm (PRGA) / ARX blocks.
