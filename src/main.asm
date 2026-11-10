@@ -24,8 +24,9 @@ LARGE_SIZE  = 4096
     promptKey       BYTE "Enter encryption key/passphrase:                             ", 0
     promptPlain     BYTE "Enter text to process:                                       ", 0
     errOpenMsg      BYTE "Error: Failed to open or create file.                        ", 0
+    errIOMsg        BYTE "Error: Failed to read from or write to file.                 ", 0
     successMsg      BYTE "Success!                                                     ", 0
-    emptyInputMsg   BYTE "[!] Error: Input path or text buffer cannot be empty.        ", 0
+    emptyInputMsg   BYTE "[!] Error: Input path, text or key cannot be empty.          ", 0
     pressEnterMsg   BYTE "Press any key to return to the menu...                       ", 0
     invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}. ", 0
 
@@ -163,14 +164,24 @@ LARGE_SIZE  = 4096
             CALL CreateOutputFile
             MOV  outputHandle, eax
             CMP  eax, INVALID_HANDLE_VALUE
-            JE   handleError
+            JE   closeInputFile
 
         JMP openSuccess
 
+        closeInputFile:
+            ; closes the already opened inputFile so it doesnt stay locked
+            MOV  eax, inputHandle
+            CALL CloseFile
+
         handleError:
+            ; Error message in Bright Red (0Ch)
+            MOV  eax, 0Ch
+            CALL SetTextColor
             MOV  edx, OFFSET errOpenMsg
             CALL WriteString
             CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
             STC                    ; set carry flag to indicate error
             RET
 
@@ -218,6 +229,10 @@ LARGE_SIZE  = 4096
             MOV  ecx, SMALL_SIZE
             CALL ReadString
 
+            ; Validate empty key input
+            CMP  keyBuffer, 0
+            JE   validationError
+
             ; printing prompt for text
             MOV  edx, OFFSET promptPlain
             CALL WriteString
@@ -247,12 +262,16 @@ LARGE_SIZE  = 4096
         runFileMode:
             CALL promptUser              ; get source and destination paths + key
             
-            ; Validate empty file path
+            ; Validate empty file paths and key
             CMP  inputFilePath, 0
+            JE   validationError
+            CMP  outputFilePath, 0
+            JE   validationError
+            CMP  keyBuffer, 0
             JE   validationError
 
             CALL openFiles               ; opens handles
-            JC   engineClose             ; aborts if file open failed
+            JC   openError               ; aborts if file open failed
 
             fileLoop:
                 ; reading data chunk from input file into dataBuffer with explicit register setup
@@ -260,7 +279,7 @@ LARGE_SIZE  = 4096
                 MOV  edx, OFFSET dataBuffer
                 MOV  ecx, LARGE_SIZE
                 CALL ReadFromFile
-                JC   closeFiles
+                JC   ioError
                 MOV  bytesRead, eax
                 CMP  eax, 0
                 JE   engineSuccess       ; EOF reached
@@ -273,7 +292,7 @@ LARGE_SIZE  = 4096
                     MOV  edx, OFFSET dataBuffer
                     MOV  ecx, bytesRead
                     CALL WriteToFile
-                    JC   closeFiles
+                    JC   ioError
 
                 JMP  fileLoop
 
@@ -290,6 +309,23 @@ LARGE_SIZE  = 4096
             CALL pauseEngine                ; ie press enter to continue
 
             JMP  closeFiles
+
+        ioError:
+            ; Error message in Bright Red (0Ch)
+            MOV  eax, 0Ch
+            CALL SetTextColor
+            MOV  edx, OFFSET errIOMsg
+            CALL WriteString
+            CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
+
+            CALL pauseEngine
+            JMP  closeFiles
+
+        openError:
+            CALL pauseEngine                ; lets the user read the error printed by openFiles
+            RET
 
         validationError:
             ; Error message in Bright Red (0Ch)
@@ -567,6 +603,21 @@ LARGE_SIZE  = 4096
     decrypt_RailFenceCipher ENDP
 
 
+    ; folds the key shift in dl into the range 0 - 25 (a non-alphabetic key char would otherwise give an invalid, non-reversible shift)
+    foldVigenereShift PROC
+
+        foldLoop:
+            CMP dl, 26
+            JB  foldDone
+            SUB dl, 26
+            JMP foldLoop
+
+        foldDone:
+            RET
+
+    foldVigenereShift ENDP
+
+
     ; easy - medium
     encrypt_VigenereCipher PROC
 
@@ -597,6 +648,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigEncLower:
+            CALL foldVigenereShift
             ADD al, dl
             CMP al, 'z'
             JBE vigEncStore
@@ -614,6 +666,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigEncUpperApply:
+            CALL foldVigenereShift
             ADD al, dl
             CMP al, 'Z'
             JBE vigEncStore
@@ -665,6 +718,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigDecLower:
+            CALL foldVigenereShift
             SUB al, dl
             CMP al, 'a'
             JAE vigDecStore
@@ -682,6 +736,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigDecUpperApply:
+            CALL foldVigenereShift
             SUB al, dl
             CMP al, 'A'
             JAE vigDecStore
