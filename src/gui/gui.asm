@@ -233,9 +233,19 @@ IDC_RUN       = 1015
     encrypt_CaesarCipher PROC
 
         initializeRegs:
-                MOV esi, OFFSET dataBuffer                            ; points to source data chunk
-                MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
-                MOV bl, 3                                             ; using a arbitrary shift of 3 for now
+            MOV esi, OFFSET dataBuffer                            ; points to source data chunk
+            MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
+            
+            ; Get key from keyBuffer and convert ASCII to integer shift
+                MOV al, keyBuffer
+                SUB al, '0'
+                CMP al, 25
+                JA  defaultKey
+                MOV bl, al
+                JMP applyCipher
+
+        defaultKey:
+            MOV bl, 0
 
         applyCipher:
             MOV al, [esi]                                             ; Load current byte
@@ -286,7 +296,17 @@ IDC_RUN       = 1015
         initializeRegs:
             MOV esi, OFFSET dataBuffer                            ; points to source data chunk
             MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
-            MOV bl, 3                                             ; shift of 3 used in encryption
+
+            ; Get key from keyBuffer and convert ASCII to integer shift
+                MOV al, keyBuffer
+                SUB al, '0'
+                CMP al, 25
+                JA  defaultKey
+                MOV bl, al
+                JMP applyCipher
+
+        defaultKey:
+            MOV bl, 0
 
         applyCipher:
             MOV al, [esi]                                         ; Load current byte
