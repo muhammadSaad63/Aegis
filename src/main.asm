@@ -19,14 +19,16 @@ LARGE_SIZE  = 4096
     outputFilePath BYTE MEDIUM_SIZE DUP(?)
 
     ; prompt strings
-    promptIn       BYTE "Enter source file path:                               ", 0
-    promptOut      BYTE "Enter output file path:                               ", 0
-    promptKey      BYTE "Enter encryption key/passphrase:                      ", 0
-    promptPlain    BYTE "Enter text to process:                                ", 0
-    errOpenMsg     BYTE "Error: Failed to open or create file.                 ", 0
-    successMsg     BYTE "Success!                                              ", 0
-    emptyInputMsg  BYTE "[!] Error: Input path or text buffer cannot be empty. ", 0
-    pressEnterMsg  BYTE "Press any key to return to the menu...                ", 0
+    promptIn        BYTE "Enter source file path:                                      ", 0
+    promptOut       BYTE "Enter output file path:                                      ", 0
+    promptKey       BYTE "Enter encryption key/passphrase:                             ", 0
+    promptPlain     BYTE "Enter text to process:                                       ", 0
+    errOpenMsg      BYTE "Error: Failed to open or create file.                        ", 0
+    errIOMsg        BYTE "Error: Failed to read from or write to file.                 ", 0
+    successMsg      BYTE "Success!                                                     ", 0
+    emptyInputMsg   BYTE "[!] Error: Input path, text or key cannot be empty.          ", 0
+    pressEnterMsg   BYTE "Press any key to return to the menu...                       ", 0
+    invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}. ", 0
 
     ; arr of procedure pointers
     encryptionCiphers DWORD OFFSET encrypt_XORCipher,
@@ -48,11 +50,11 @@ LARGE_SIZE  = 4096
     bannerLine4  BYTE "===================================================", 0Ah, 0Dh, 0
     bannerLine5  BYTE "                                                   ", 0Ah, 0Dh, 0
     bannerLine6  BYTE "  [1] XOR Cipher            [4] Vigenere Cipher    ", 0Ah, 0Dh, 0
-    bannerLine7  BYTE "  [2] Caesar Cipher         [5] RC4/ChaCha20 ARX   ", 0Ah, 0Dh, 0
+    bannerLine7  BYTE "  [2] Caesar Cipher         [5] RC4 ARX            ", 0Ah, 0Dh, 0
     bannerLine8  BYTE "  [3] Rail Fence                                   ", 0Ah, 0Dh, 0
     bannerLine9  BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
     bannerLine10 BYTE "  [M] Toggle Mode:   [ ENCRYPTION ]                ", 0Ah, 0Dh, 0
-    bannerLine11 BYTE "  [I] Toggle Input:  [ FILE ]                      ", 0Ah, 0Dh, 0
+    bannerLine11 BYTE "  [I] Toggle Input:  [ TEXT ]                      ", 0Ah, 0Dh, 0
     bannerLine12 BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
     bannerLine13 BYTE "  [X] Exit Aegis                                   ", 0Ah, 0Dh, 0 
     bannerLine14 BYTE "                                                   ", 0Ah, 0Dh, 0 
@@ -60,12 +62,12 @@ LARGE_SIZE  = 4096
     bannerLine16 BYTE "                                                   ", 0Ah, 0Dh, 0
     bannerLine17 BYTE "Select an option (1 - 5 / M / I / X): ", 0
 
-    invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}.", 0
 
     ; control flags
     isInputFile       BYTE  0               ; 0: text, 1: file              | initially set for text input
     isModeEncryption  BYTE  1               ; 0: decryption, 1: encryption  | initially set for encryption
     activeCipherIndex DWORD 0
+    skipTypewriter    BYTE  0               ; 0: use typewriter, 1: skip typewriter on toggle
 
     tempBuffer       BYTE LARGE_SIZE DUP(?)
     rc4State         BYTE 256 DUP(?)
@@ -73,11 +75,14 @@ LARGE_SIZE  = 4096
 .code
 
     ; Pause utility to let user review outputs before redrawing menu
-    pauseEngine PROC USES eax, edx
+    pauseEngine PROC USES eax edx
+
+        CALL Crlf
 
         MOV  edx, OFFSET pressEnterMsg
         CALL WriteString
         CALL ReadChar
+
         CALL Crlf
 
         RET
@@ -159,14 +164,24 @@ LARGE_SIZE  = 4096
             CALL CreateOutputFile
             MOV  outputHandle, eax
             CMP  eax, INVALID_HANDLE_VALUE
-            JE   handleError
+            JE   closeInputFile
 
         JMP openSuccess
 
+        closeInputFile:
+            ; closes the already opened inputFile so it doesnt stay locked
+            MOV  eax, inputHandle
+            CALL CloseFile
+
         handleError:
+            ; Error message in Bright Red (0Ch)
+            MOV  eax, 0Ch
+            CALL SetTextColor
             MOV  edx, OFFSET errOpenMsg
             CALL WriteString
             CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
             STC                    ; set carry flag to indicate error
             RET
 
@@ -214,6 +229,10 @@ LARGE_SIZE  = 4096
             MOV  ecx, SMALL_SIZE
             CALL ReadString
 
+            ; Validate empty key input
+            CMP  keyBuffer, 0
+            JE   validationError
+
             ; printing prompt for text
             MOV  edx, OFFSET promptPlain
             CALL WriteString
@@ -236,17 +255,23 @@ LARGE_SIZE  = 4096
             CALL WriteString
             CALL Crlf
 
+            CALL pauseEngine
+
             RET
 
         runFileMode:
             CALL promptUser              ; get source and destination paths + key
             
-            ; Validate empty file path
+            ; Validate empty file paths and key
             CMP  inputFilePath, 0
+            JE   validationError
+            CMP  outputFilePath, 0
+            JE   validationError
+            CMP  keyBuffer, 0
             JE   validationError
 
             CALL openFiles               ; opens handles
-            JC   engineClose             ; aborts if file open failed
+            JC   openError               ; aborts if file open failed
 
             fileLoop:
                 ; reading data chunk from input file into dataBuffer with explicit register setup
@@ -254,7 +279,7 @@ LARGE_SIZE  = 4096
                 MOV  edx, OFFSET dataBuffer
                 MOV  ecx, LARGE_SIZE
                 CALL ReadFromFile
-                JC   closeFiles
+                JC   ioError
                 MOV  bytesRead, eax
                 CMP  eax, 0
                 JE   engineSuccess       ; EOF reached
@@ -267,7 +292,7 @@ LARGE_SIZE  = 4096
                     MOV  edx, OFFSET dataBuffer
                     MOV  ecx, bytesRead
                     CALL WriteToFile
-                    JC   closeFiles
+                    JC   ioError
 
                 JMP  fileLoop
 
@@ -280,7 +305,27 @@ LARGE_SIZE  = 4096
             CALL Crlf
             MOV  eax, 07h
             CALL SetTextColor
+
+            CALL pauseEngine                ; ie press enter to continue
+
             JMP  closeFiles
+
+        ioError:
+            ; Error message in Bright Red (0Ch)
+            MOV  eax, 0Ch
+            CALL SetTextColor
+            MOV  edx, OFFSET errIOMsg
+            CALL WriteString
+            CALL Crlf
+            MOV  eax, 07h
+            CALL SetTextColor
+
+            CALL pauseEngine
+            JMP  closeFiles
+
+        openError:
+            CALL pauseEngine                ; lets the user read the error printed by openFiles
+            RET
 
         validationError:
             ; Error message in Bright Red (0Ch)
@@ -291,6 +336,8 @@ LARGE_SIZE  = 4096
             CALL Crlf
             MOV  eax, 07h
             CALL SetTextColor
+
+            CALL pauseEngine
             RET
 
         closeFiles:
@@ -556,6 +603,21 @@ LARGE_SIZE  = 4096
     decrypt_RailFenceCipher ENDP
 
 
+    ; folds the key shift in dl into the range 0 - 25 (a non-alphabetic key char would otherwise give an invalid, non-reversible shift)
+    foldVigenereShift PROC
+
+        foldLoop:
+            CMP dl, 26
+            JB  foldDone
+            SUB dl, 26
+            JMP foldLoop
+
+        foldDone:
+            RET
+
+    foldVigenereShift ENDP
+
+
     ; easy - medium
     encrypt_VigenereCipher PROC
 
@@ -586,6 +648,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigEncLower:
+            CALL foldVigenereShift
             ADD al, dl
             CMP al, 'z'
             JBE vigEncStore
@@ -603,6 +666,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigEncUpperApply:
+            CALL foldVigenereShift
             ADD al, dl
             CMP al, 'Z'
             JBE vigEncStore
@@ -654,6 +718,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigDecLower:
+            CALL foldVigenereShift
             SUB al, dl
             CMP al, 'a'
             JAE vigDecStore
@@ -671,6 +736,7 @@ LARGE_SIZE  = 4096
             SUB dl, 'A'
 
         vigDecUpperApply:
+            CALL foldVigenereShift
             SUB al, dl
             CMP al, 'A'
             JAE vigDecStore
@@ -838,6 +904,25 @@ LARGE_SIZE  = 4096
     decrypt_RC4Cipher ENDP
 
 
+    ; medium - hard
+    encrypt_ChaCha20Cipher PROC
+
+        ; idhar likho
+
+        RET
+
+    encrypt_ChaCha20Cipher ENDP
+
+
+    decrypt_ChaCha20Cipher PROC
+
+        ; idhar likho
+
+        RET
+
+    decrypt_ChaCha20Cipher ENDP
+
+
     ; prints the program menu
     printMenu PROC
 
@@ -849,8 +934,20 @@ LARGE_SIZE  = 4096
 
             MOV  EDX, OFFSET bannerLine1
             CALL WriteString
+
+            CMP  skipTypewriter, 1
+            JE   printInstantBanner
             MOV  EDX, OFFSET bannerLine2
             CALL printTypewriter                ; animated printing for A E G I S only
+            JMP  continueBanner
+
+        printInstantBanner:
+            MOV  EDX, OFFSET bannerLine2
+            CALL WriteString
+            MOV  skipTypewriter, 0             ; reset flag
+
+        continueBanner:
+
             MOV  EDX, OFFSET bannerLine3
             CALL WriteString
             MOV  EDX, OFFSET bannerLine4
@@ -1006,6 +1103,7 @@ LARGE_SIZE  = 4096
             MOV al, isModeEncryption
             XOR al, 1                       ; toggling the value of the status flag
             MOV isModeEncryption, al
+            MOV skipTypewriter, 1           ; skip typewriter on toggle redraw
             
             CALL toggleModeString
             RET
@@ -1014,6 +1112,7 @@ LARGE_SIZE  = 4096
             MOV al, isInputFile
             XOR al, 1                       ; toggling the value of the status flag
             MOV isInputFile, al
+            MOV skipTypewriter, 1           ; skip typewriter on toggle redraw
 
             CALL toggleInputString
             RET
@@ -1027,7 +1126,7 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine10 upon entering of M (DE <-> EN)    
     toggleModeString PROC
 
-        MOV esi, OFFSET bannerLine10 + 22   
+        MOV esi, OFFSET bannerLine10 + 23   
 
         CMP BYTE PTR [esi], 'E'        ; if text in banner is currently encryption
         JE  updateToDecryption
@@ -1050,7 +1149,7 @@ LARGE_SIZE  = 4096
     ; updates the text of bannerLine11 upon entering of I (FILE <-> TEXT)
     toggleInputString PROC
         
-        MOV esi, OFFSET (bannerLine11 + 22)          ; 22 being the relative position of start of encryption/decryption word in bannerLine10
+        MOV esi, OFFSET (bannerLine11 + 23)          ; 23 being the relative position of start of input mode word in bannerLine11
 
         CMP BYTE PTR [esi], 'F'                            ; if text is currently FILE
         JE  updateToText
@@ -1081,7 +1180,6 @@ LARGE_SIZE  = 4096
             CALL printMenu
             CALL getInput
             CALL processInput
-            CALL pauseEngine
 
             JMP  program
 

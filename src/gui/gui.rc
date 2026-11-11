@@ -1,0 +1,53 @@
+#include <windows.h>
+
+// ids (must match the dialog ids in gui.asm)
+#define IDD_MAIN      100
+#define IDC_CIPHER    1001
+#define IDC_ENCRYPT   1002
+#define IDC_DECRYPT   1003
+#define IDC_TEXT      1004
+#define IDC_FILE      1005
+#define IDC_HEX       1006
+#define IDC_KEY       1007
+#define IDC_INPATH    1008
+#define IDC_BROWSEIN  1009
+#define IDC_OUTPATH   1010
+#define IDC_BROWSEOUT 1011
+#define IDC_TEXTIN    1012
+#define IDC_TEXTOUT   1013
+#define IDC_STATUS    1014
+#define IDC_RUN       1015
+
+IDD_MAIN DIALOGEX 0, 0, 320, 250
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX
+CAPTION "Aegis - Modular Cryptographic Engine v1.0"
+FONT 9, "Segoe UI"
+BEGIN
+    GROUPBOX        "Algorithm", -1, 7, 5, 306, 55
+    LTEXT           "Cipher:", -1, 15, 20, 28, 8
+    COMBOBOX        IDC_CIPHER, 46, 18, 110, 90, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTORADIOBUTTON "Encrypt", IDC_ENCRYPT, 175, 19, 45, 10, WS_GROUP | WS_TABSTOP
+    AUTORADIOBUTTON "Decrypt", IDC_DECRYPT, 225, 19, 45, 10
+    LTEXT           "Input:", -1, 15, 40, 28, 8
+    AUTORADIOBUTTON "Text", IDC_TEXT, 46, 39, 35, 10, WS_GROUP | WS_TABSTOP
+    AUTORADIOBUTTON "File", IDC_FILE, 90, 39, 35, 10
+    AUTOCHECKBOX    "Hex text (text mode)", IDC_HEX, 175, 39, 100, 10, WS_GROUP | WS_TABSTOP
+
+    LTEXT           "Key:", -1, 7, 68, 40, 8
+    EDITTEXT        IDC_KEY, 50, 66, 263, 12, ES_AUTOHSCROLL
+    LTEXT           "Source file:", -1, 7, 85, 42, 8
+    EDITTEXT        IDC_INPATH, 50, 83, 208, 12, ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...", IDC_BROWSEIN, 264, 82, 49, 14
+    LTEXT           "Output file:", -1, 7, 102, 42, 8
+    EDITTEXT        IDC_OUTPATH, 50, 100, 208, 12, ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...", IDC_BROWSEOUT, 264, 99, 49, 14
+
+    LTEXT           "Text:", -1, 7, 119, 40, 8
+    EDITTEXT        IDC_TEXTIN, 7, 129, 306, 40, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL
+    LTEXT           "Result:", -1, 7, 173, 40, 8
+    EDITTEXT        IDC_TEXTOUT, 7, 183, 306, 40, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
+
+    LTEXT           "", IDC_STATUS, 7, 232, 190, 10
+    DEFPUSHBUTTON   "Run", IDC_RUN, 203, 229, 50, 14
+    PUSHBUTTON      "Exit", IDCANCEL, 263, 229, 50, 14
+END
