@@ -4,7 +4,34 @@ INCLUDE Irvine32.inc
 SMALL_SIZE  = 64
 MEDIUM_SIZE = 256
 LARGE_SIZE  = 4096
+; one ChaCha20 quarter round on four words of chachaWork
+chachaQR MACRO a, b, c, d
+    MOV eax, chachaWork[a * 4]
+    MOV ebx, chachaWork[b * 4]
+    MOV ecx, chachaWork[c * 4]
+    MOV edx, chachaWork[d * 4]
 
+    ADD eax, ebx
+    XOR edx, eax
+    ROL edx, 16
+
+    ADD ecx, edx
+    XOR ebx, ecx
+    ROL ebx, 12
+
+    ADD eax, ebx
+    XOR edx, eax
+    ROL edx, 8
+
+    ADD ecx, edx
+    XOR ebx, ecx
+    ROL ebx, 7
+
+    MOV chachaWork[a * 4], eax
+    MOV chachaWork[b * 4], ebx
+    MOV chachaWork[c * 4], ecx
+    MOV chachaWork[d * 4], edx
+ENDM
 ; variables
 .data
     ; data buffers
@@ -28,20 +55,22 @@ LARGE_SIZE  = 4096
     successMsg      BYTE "Success!                                                     ", 0
     emptyInputMsg   BYTE "[!] Error: Input path, text or key cannot be empty.          ", 0
     pressEnterMsg   BYTE "Press any key to return to the menu...                       ", 0
-    invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 5, M, I, X}. ", 0
+    invalidInputMsg BYTE "[!] Invalid Input: Input can only be among {1 - 6, M, I, X}. ", 0
 
     ; arr of procedure pointers
-    encryptionCiphers DWORD OFFSET encrypt_XORCipher,
+        encryptionCiphers DWORD OFFSET encrypt_XORCipher,
                             OFFSET encrypt_CaesarCipher,
                             OFFSET encrypt_RailFenceCipher,
                             OFFSET encrypt_VigenereCipher,
-                            OFFSET encrypt_RC4Cipher
+                            OFFSET encrypt_RC4Cipher,
+                            OFFSET encrypt_ChaCha20Cipher
 
     decryptionCiphers DWORD OFFSET decrypt_XORCipher,
                             OFFSET decrypt_CaesarCipher,
                             OFFSET decrypt_RailFenceCipher,
                             OFFSET decrypt_VigenereCipher,
-                            OFFSET decrypt_RC4Cipher
+                            OFFSET decrypt_RC4Cipher,
+                            OFFSET decrypt_ChaCha20Cipher
 
     ; using indivdual lines instead of a single, long string due to max line length limit in masm issue
     bannerLine1  BYTE "===================================================", 0Ah, 0Dh, 0
@@ -51,7 +80,7 @@ LARGE_SIZE  = 4096
     bannerLine5  BYTE "                                                   ", 0Ah, 0Dh, 0
     bannerLine6  BYTE "  [1] XOR Cipher            [4] Vigenere Cipher    ", 0Ah, 0Dh, 0
     bannerLine7  BYTE "  [2] Caesar Cipher         [5] RC4 ARX            ", 0Ah, 0Dh, 0
-    bannerLine8  BYTE "  [3] Rail Fence                                   ", 0Ah, 0Dh, 0
+    bannerLine8  BYTE "  [3] Rail Fence            [6] ChaCha20           ", 0Ah, 0Dh, 0
     bannerLine9  BYTE "---------------------------------------------------", 0Ah, 0Dh, 0
     bannerLine10 BYTE "  [M] Toggle Mode:   [ ENCRYPTION ]                ", 0Ah, 0Dh, 0
     bannerLine11 BYTE "  [I] Toggle Input:  [ TEXT ]                      ", 0Ah, 0Dh, 0
@@ -60,7 +89,10 @@ LARGE_SIZE  = 4096
     bannerLine14 BYTE "                                                   ", 0Ah, 0Dh, 0 
     bannerLine15 BYTE "===================================================", 0Ah, 0Dh, 0
     bannerLine16 BYTE "                                                   ", 0Ah, 0Dh, 0
-    bannerLine17 BYTE "Select an option (1 - 5 / M / I / X): ", 0
+    bannerLine17 BYTE "Select an option (1 - 6 / M / I / X):              ", 0Ah, 0Dh, 0
+    hintLine1    BYTE "    Mode  : encrypt or decrypt your data           ", 0Ah, 0Dh, 0
+    hintLine2    BYTE "    Input : TEXT = type here, FILE = use files     ", 0Ah, 0Dh, 0
+    hintLine3    BYTE "    Then pick a cipher [1-6] to run it.            ", 0Ah, 0Dh, 0
 
 
     ; control flags
@@ -69,11 +101,29 @@ LARGE_SIZE  = 4096
     activeCipherIndex DWORD 0
     skipTypewriter    BYTE  0               ; 0: use typewriter, 1: skip typewriter on toggle
 
+    ; ChaCha20 state
+    chachaConst   DWORD 61707865h, 3320646Eh, 79622D32h, 6B206574h           ; "expand 32-byte k"
+    chachaKey     BYTE  32 DUP(?)
+    chachaState   DWORD 16 DUP(?)
+    chachaWork    DWORD 16 DUP(?)                                            ; working copy / 64-byte keystream block
+
     tempBuffer       BYTE LARGE_SIZE DUP(?)
     rc4State         BYTE 256 DUP(?)
 
 .code
+     
+    Include xor_cipher.inc
 
+    Include caesar_cipher.inc
+    
+    Include railfence_cipher.inc
+    
+    Include vigenere_cipher.inc
+    
+    Include rc4_cipher.inc
+
+    Include chacha20_cipher.inc
+    
     ; Pause utility to let user review outputs before redrawing menu
     pauseEngine PROC USES eax edx
 
@@ -350,579 +400,7 @@ LARGE_SIZE  = 4096
             RET
 
     executeEngine ENDP
-
-
-    ; performs the very basic XOR cipher on the data chunk
-    encrypt_XORCipher PROC
-
-        initializeRegs:
-            MOV esi, OFFSET dataBuffer      ; holds address of data chunk
-            MOV ecx, bytesRead              ; loop counter
-            XOR edi, edi                    ; effectively MOV edi, 0
-
-        getCipherKey:
-            MOV al, keyBuffer[edi]          ; get current key byte
-            CMP al, 0                       ; checks for null terminator of key string
-            JNE applyCipher                 ; if al != 0 (ie the null terminator), jumnp to applyXOR
-            XOR edi, edi                    ; reset key index (wrap around) if null terminator reached
-            MOV al, keyBuffer[edi]          ; get value at start of key
-
-        applyCipher:   
-            XOR [esi], al                   ; apply bitwise xor to a byte of the data chunk
-            INC esi                         ; move to next data byte
-            INC edi                         ; move to next key byte
-
-            LOOP getCipherKey               ; decrements ecx and then gets the next key if ecx != 0
-
-        RET
-
-    encrypt_XORCipher ENDP
-
-
-    ; decryption algo for the XOR cipher
-    decrypt_XORCipher PROC
-
-        initializeRegs:
-            MOV esi, OFFSET dataBuffer      ; holds address of data chunk
-            MOV ecx, bytesRead              ; loop counter
-            XOR edi, edi                    ; effectively MOV edi, 0
-
-        getCipherKey:
-            MOV al, keyBuffer[edi]          ; get current key byte
-            CMP al, 0                       ; checks for null terminator of key string
-            JNE applyCipher                 ; if al != 0, jump to applyCipher
-            XOR edi, edi                    ; reset key index (wrap around)
-            MOV al, keyBuffer[edi]          ; get value at start of key
-
-        applyCipher:   
-            XOR [esi], al                   ; apply bitwise xor to undo encryption
-            INC esi                         ; move to next data byte
-            INC edi                         ; move to next key byte
-            LOOP getCipherKey
-
-        RET
-
-    decrypt_XORCipher ENDP
-
-
-    ; a very basic cipher which encrypts by shifting each char in the text forward (by ascii) by some key amount
-    encrypt_CaesarCipher PROC
-
-        initializeRegs:
-                MOV esi, OFFSET dataBuffer                            ; points to source data chunk
-                MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
-                MOV bl, 3                                             ; using a arbitrary shift of 3 for now
-
-        applyCipher:
-            MOV al, [esi]                                             ; Load current byte
-
-            checkUpperCase:
-                ; check if byte is uppercase (A-Z -> ascii 65 to 90)
-                    CMP al, 'A'
-                    JB  skipByte                                      ; skip the byte if its ascii value is below A (ie it aint a alphabet)
-                    CMP al, 'Z'
-                    JA  checkLowerCase                                ; if the byte is greater than Z, go check if it is lowercase
-                
-                ; handle uppercase shift with wrapAround
-                    ADD al, bl                                        ; apply shift
-                    CMP al, 'Z'                                       
-                    JBE storeByte                                     ; stores the byte if it below or eual to Z
-                    SUB al, 26                                        ; wrap around if past Z
-                    JMP storeByte
-
-            checkLowerCase:
-                ; check if byte is lowercased (a-z -> ascii 97 to 122)
-                    CMP al, 'a'
-                    JB  skipByte                                      ; skips if ascii value of byte is > Z & < a (ie bw Z and a)
-                    CMP al, 'z'
-                    JA  skipByte                                      ; skips if ascii value of byte is > a (ie > 122)
-
-                ; handle lowerCase shift with wrapAround
-                    ADD al, bl                                        ; apply shift
-                    CMP al, 'z'
-                    JBE storeByte
-                    SUB al, 26                                        ; wrap around if past z
-                    JMP storeByte  
-
-            storeByte:
-                MOV [esi], al                                         ; saves transformed byte back inPlace
-
-        skipByte:
-            INC  esi                                                   ; move to next byte of dataBuffer
-            LOOP applyCipher
-
-        RET
-
-    encrypt_CaesarCipher ENDP
-
-
-    ; the decryption algo for the caesar cipher which decrypts by subtracting the key from the text instead of adding it
-    decrypt_CaesarCipher PROC
-
-        initializeRegs:
-            MOV esi, OFFSET dataBuffer                            ; points to source data chunk
-            MOV ecx, bytesRead                                    ; the loop counter = bytes actually read
-            MOV bl, 3                                             ; shift of 3 used in encryption
-
-        applyCipher:
-            MOV al, [esi]                                         ; Load current byte
-
-            checkUpperCase:
-                ; check if byte is uppercase (A-Z -> ascii 65 to 90)
-                CMP al, 'A'
-                JB  skipByte                                      ; skip if below 'A'
-                CMP al, 'Z'
-                JA  checkLowerCase                                ; if above 'Z', check lowercase
-
-                ; handle uppercase reverse shift with wrapAround
-                SUB al, bl                                        ; subtract shift
-                CMP al, 'A'                                       
-                JAE storeByte                                     ; stores if greater than or equal to 'A'
-                ADD al, 26                                        ; wrap around if past 'A' downwards
-                JMP storeByte
-
-            checkLowerCase:
-                ; check if byte is lowercase (a-z -> ascii 97 to 122)
-                CMP al, 'a'
-                JB  skipByte                                      ; skip if between 'Z' and 'a'
-                CMP al, 'z'
-                JA  skipByte                                      ; skip if above 'z'
-
-                ; handle lowercase reverse shift with wrapAround
-                SUB al, bl                                        ; subtract shift
-                CMP al, 'a'
-                JAE storeByte
-                ADD al, 26                                        ; wrap around if past 'a' downwards
-                JMP storeByte  
-
-            storeByte:
-                MOV [esi], al                                     ; saves transformed byte back in-place
-
-        skipByte:
-            INC  esi                                              ; move to next byte of dataBuffer
-            LOOP applyCipher
-
-        RET
-
-    decrypt_CaesarCipher ENDP
-
-
-    ; easy
-    encrypt_RailFenceCipher PROC
-
-        MOV esi, OFFSET dataBuffer
-        MOV edi, OFFSET tempBuffer
-        MOV ebx, bytesRead
-        XOR eax, eax
-
-        rfEvenLoop:
-            CMP eax, ebx
-            JAE rfOddStart
-
-            MOV dl, [esi + eax]
-            MOV [edi], dl
-            INC edi
-            ADD eax, 2
-            JMP rfEvenLoop
-
-        rfOddStart:
-            MOV eax, 1
-
-        rfOddLoop:
-            CMP eax, ebx
-            JAE rfCopyBack
-
-            MOV dl, [esi + eax]
-            MOV [edi], dl
-            INC edi
-            ADD eax, 2
-            JMP rfOddLoop
-
-        rfCopyBack:
-            MOV esi, OFFSET tempBuffer
-            MOV edi, OFFSET dataBuffer
-            MOV ecx, bytesRead
-
-        rfCopyLoop:
-            MOV al, [esi]
-            MOV [edi], al
-            INC esi
-            INC edi
-            LOOP rfCopyLoop
-
-        RET
-
-    encrypt_RailFenceCipher ENDP
-
-
-    decrypt_RailFenceCipher PROC
-
-        MOV esi, OFFSET dataBuffer
-        MOV eax, bytesRead
-        INC eax
-        SHR eax, 1
-
-        MOV edi, OFFSET dataBuffer
-        ADD edi, eax
-
-        MOV edx, OFFSET tempBuffer
-        MOV ecx, bytesRead
-        XOR ebx, ebx
-
-        rfDecLoop:
-            CMP ebx, 0
-            JNE rfSecondRail
-
-            MOV al, [esi]
-            INC esi
-            JMP rfStoreChar
-
-        rfSecondRail:
-            MOV al, [edi]
-            INC edi
-
-        rfStoreChar:
-            MOV [edx], al
-            INC edx
-            XOR ebx, 1
-            LOOP rfDecLoop
-
-        MOV esi, OFFSET tempBuffer
-        MOV edi, OFFSET dataBuffer
-        MOV ecx, bytesRead
-
-        rfDecCopy:
-            MOV al, [esi]
-            MOV [edi], al
-            INC esi
-            INC edi
-            LOOP rfDecCopy
-
-        RET
-
-    decrypt_RailFenceCipher ENDP
-
-
-    ; folds the key shift in dl into the range 0 - 25 (a non-alphabetic key char would otherwise give an invalid, non-reversible shift)
-    foldVigenereShift PROC
-
-        foldLoop:
-            CMP dl, 26
-            JB  foldDone
-            SUB dl, 26
-            JMP foldLoop
-
-        foldDone:
-            RET
-
-    foldVigenereShift ENDP
-
-
-    ; easy - medium
-    encrypt_VigenereCipher PROC
-
-        MOV esi, OFFSET dataBuffer
-        MOV edi, 0
-        MOV ecx, bytesRead
-
-        vigEncLoop:
-            MOV al, [esi]
-
-            CMP al, 'A'
-            JB vigEncNext
-            CMP al, 'Z'
-            JBE vigEncUpper
-
-            CMP al, 'a'
-            JB vigEncNext
-            CMP al, 'z'
-            JA vigEncNext
-
-            MOV dl, keyBuffer[edi]
-            CMP dl, 'a'
-            JB vigEncLowerKey
-            SUB dl, 'a'
-            JMP vigEncLower
-
-        vigEncLowerKey:
-            SUB dl, 'A'
-
-        vigEncLower:
-            CALL foldVigenereShift
-            ADD al, dl
-            CMP al, 'z'
-            JBE vigEncStore
-            SUB al, 26
-            JMP vigEncStore
-
-        vigEncUpper:
-            MOV dl, keyBuffer[edi]
-            CMP dl, 'a'
-            JB vigEncUpperKey
-            SUB dl, 'a'
-            JMP vigEncUpperApply
-
-        vigEncUpperKey:
-            SUB dl, 'A'
-
-        vigEncUpperApply:
-            CALL foldVigenereShift
-            ADD al, dl
-            CMP al, 'Z'
-            JBE vigEncStore
-            SUB al, 26
-
-        vigEncStore:
-            MOV [esi], al
-            INC edi
-
-            CMP keyBuffer[edi], 0
-            JNE vigEncNext
-            XOR edi, edi
-
-        vigEncNext:
-            INC esi
-            LOOP vigEncLoop
-
-        RET
-
-    encrypt_VigenereCipher ENDP
-
-
-    decrypt_VigenereCipher PROC
-
-        MOV esi, OFFSET dataBuffer
-        MOV edi, 0
-        MOV ecx, bytesRead
-
-        vigDecLoop:
-            MOV al, [esi]
-
-            CMP al, 'A'
-            JB vigDecNext
-            CMP al, 'Z'
-            JBE vigDecUpper
-
-            CMP al, 'a'
-            JB vigDecNext
-            CMP al, 'z'
-            JA vigDecNext
-
-            MOV dl, keyBuffer[edi]
-            CMP dl, 'a'
-            JB vigDecLowerKey
-            SUB dl, 'a'
-            JMP vigDecLower
-
-        vigDecLowerKey:
-            SUB dl, 'A'
-
-        vigDecLower:
-            CALL foldVigenereShift
-            SUB al, dl
-            CMP al, 'a'
-            JAE vigDecStore
-            ADD al, 26
-            JMP vigDecStore
-
-        vigDecUpper:
-            MOV dl, keyBuffer[edi]
-            CMP dl, 'a'
-            JB vigDecUpperKey
-            SUB dl, 'a'
-            JMP vigDecUpperApply
-
-        vigDecUpperKey:
-            SUB dl, 'A'
-
-        vigDecUpperApply:
-            CALL foldVigenereShift
-            SUB al, dl
-            CMP al, 'A'
-            JAE vigDecStore
-            ADD al, 26
-
-        vigDecStore:
-            MOV [esi], al
-            INC edi
-
-            CMP keyBuffer[edi], 0
-            JNE vigDecNext
-            XOR edi, edi
-
-        vigDecNext:
-            INC esi
-            LOOP vigDecLoop
-
-        RET
-
-    decrypt_VigenereCipher ENDP
-
-
-    ; RC4 KSA (Key-Scheduling Algorithm)
-    rc4KSA PROC
-        PUSHad
-        XOR ecx, ecx
-
-        initSBoxLoop:
-            MOV rc4State[ecx], cl
-            INC ecx
-            CMP ecx, 256
-            JL  initSBoxLoop
-
-            XOR ecx, ecx            
-            XOR ebx, ebx            
-            XOR edx, edx            
-            
-        ksaLoop:
-            MOV al, rc4State[ecx]   
-            
-            PUSH ecx
-            MOV esi, OFFSET keyBuffer
-            ADD esi, edx            
-            MOV ah, [esi]           
-            CMP ah, 0               
-            JNE keyValid
-            
-            XOR edx, edx
-            MOV esi, OFFSET keyBuffer
-            MOV ah, [esi]
-        keyValid:
-            POP ecx
-
-            ADD bl, al              
-            ADD bl, ah              
-
-            MOV al, rc4State[ecx]   
-            
-            PUSH ecx
-            MOVzx ecx, bl           
-            MOV ah, rc4State[ecx]   
-            POP ecx                 
-
-            MOV rc4State[ecx], ah   
-            
-            PUSH ecx
-            MOVzx ecx, bl
-            MOV rc4State[ecx], al   
-            POP ecx
-
-            INC edx                 
-            INC ecx                 
-            CMP ecx, 256
-            JL  ksaLoop
-
-        POPad
-        RET
-
-    rc4KSA ENDP
-
-
-    ; RC4 PRGA & Stream Transformation
-    rc4Transform PROC
-        PUSHad
-
-        CALL rc4KSA
-
-        XOR ecx, ecx            
-        XOR esi, esi            
-        MOV bl, 0               
-        MOV bh, 0               
-
-        prgaLoop:
-            CMP ecx, bytesRead      
-            JGE prgaDone
-
-            INC bl                  
-            
-            PUSH ecx
-            MOVzx ecx, bl
-            MOV al, rc4State[ecx]   
-            POP ecx
-            
-            ADD bh, al              
-
-            PUSH ecx
-            MOVzx ecx, bl
-            MOV al, rc4State[ecx]   
-            
-            PUSH ebx
-            MOVzx ecx, bh           
-            MOV ah, rc4State[ecx]   
-            POP ebx
-
-            MOV rc4State[ecx], al   
-            
-            PUSH ebx
-            MOVzx ecx, bl           
-            MOV rc4State[ecx], ah   
-            POP ebx
-            
-            POP ecx
-
-            PUSH ecx
-            MOVzx ecx, bl
-            MOV al, rc4State[ecx]   
-            MOVzx ecx, bh
-            MOV ah, rc4State[ecx]   
-            POP ecx
-
-            ADD al, ah              
-            MOVzx edx, al           
-            MOV al, rc4State[edx]   
-
-            MOV esi, OFFSET dataBuffer
-            ADD esi, ecx            
-            XOR [esi], al           
-
-            INC ecx                 
-            JMP prgaLoop
-
-        prgaDone:
-            POPad
-            RET
-
-    rc4Transform ENDP
-
-
-    ; medium
-    encrypt_RC4Cipher PROC
-
-        CALL rc4Transform
-        
-        RET
-
-    encrypt_RC4Cipher ENDP
-
-
-    decrypt_RC4Cipher PROC
-
-        CALL rc4Transform
-
-        RET
-
-    decrypt_RC4Cipher ENDP
-
-
-    ; medium - hard
-    encrypt_ChaCha20Cipher PROC
-
-        ; idhar likho
-
-        RET
-
-    encrypt_ChaCha20Cipher ENDP
-
-
-    decrypt_ChaCha20Cipher PROC
-
-        ; idhar likho
-
-        RET
-
-    decrypt_ChaCha20Cipher ENDP
-
-
+   
     ; prints the program menu
     printMenu PROC
 
@@ -981,6 +459,12 @@ LARGE_SIZE  = 4096
             MOV  EDX, OFFSET bannerLine10
             CALL WriteString
             MOV  EDX, OFFSET bannerLine11
+            CALL WriteString
+            MOV  EDX, OFFSET hintLine1
+            CALL WriteString
+            MOV  EDX, OFFSET hintLine2
+            CALL WriteString
+            MOV  EDX, OFFSET hintLine3
             CALL WriteString
             MOV  EDX, OFFSET bannerLine12
             CALL WriteString
@@ -1042,10 +526,10 @@ LARGE_SIZE  = 4096
                 CMP al, 'i'
                 JE  validInput
 
-            ; check for cipher choices ('1' through '5')
+            ; check for cipher choices ('1' through '6')
                 CMP al, '1'             ; < 1
                 JB  invalidInput         
-                CMP al, '5'             ; >= 1 & <= 5
+                CMP al, '6'             ; >= 1 & <= 6
                 JBE validInput              
         
         invalidInput:
